@@ -182,6 +182,8 @@ export function FireBall({
         height: fullScreen ? "100vh" : "100%",
         overflow: "hidden",
         background,
+        pointerEvents: "none",
+        zIndex: 40,
         ...style,
       }}
     >

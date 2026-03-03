@@ -53,12 +53,18 @@ export default function App() {
   const [email, setEmail] = useState("")
   const [token, setToken] = useState(localStorage.getItem("zenchi_token") || "")
   const [session, setSession] = useState<MeResponse | null>(null)
+  const [sessionSyncedAt, setSessionSyncedAt] = useState(Date.now())
+  const [clockNow, setClockNow] = useState(Date.now())
   const [geoLabel, setGeoLabel] = useState("location pending")
   const [message, setMessage] = useState("Login and start session to begin timer.")
   const [adminData, setAdminData] = useState<AdminOverview | null>(null)
   const googleBtnRef = useRef<HTMLDivElement | null>(null)
 
-  const left = useMemo(() => session?.remainingMs ?? 0, [session])
+  const left = useMemo(() => {
+    if (!session) return 0
+    if (!session.active) return session.remainingMs
+    return Math.max(0, session.remainingMs - (clockNow - sessionSyncedAt))
+  }, [session, clockNow, sessionSyncedAt])
   const playDisabled = !session?.active || left <= 0
 
   const api = async (path: string, method = "GET", body?: unknown, extraHeaders?: Record<string, string>, keepalive?: boolean) => {
@@ -82,6 +88,7 @@ export default function App() {
     try {
       const me = (await api("/session/me")) as MeResponse
       setSession(me)
+      setSessionSyncedAt(Date.now())
     } catch (e) {
       setMessage(e instanceof Error ? e.message : "Failed to refresh session")
     }
@@ -95,6 +102,11 @@ export default function App() {
       setAdminData(null)
     }
   }
+
+  useEffect(() => {
+    const id = setInterval(() => setClockNow(Date.now()), 1000)
+    return () => clearInterval(id)
+  }, [])
 
   useEffect(() => {
     if (!token) return
