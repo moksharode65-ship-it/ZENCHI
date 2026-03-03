@@ -1,0 +1,30 @@
+{
+  "users": [
+    {
+      "id": 1772525037226,
+      "email": "mok@gmail.com",
+      "googleSub": null,
+      "createdAt": 1772525037226
+    }
+  ],
+  "sessions": {
+    "1772525037226": {
+      "remainingMs": 21599937,
+      "totalUsedMs": 63,
+      "active": false,
+      "startedAt": null,
+      "lastLat": 19.182053286610095,
+      "lastLng": 72.83794160855203
+    }
+  },
+  "geoLocks": [
+    {
+      "id": 1772525388230.3013,
+      "userId": 1772525037226,
+      "email": "mok@gmail.com",
+      "lat": 19.182053286610095,
+      "lng": 72.83794160855203,
+      "createdAt": 1772525388230
+    }
+  ]
+}

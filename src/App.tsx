@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { Globe } from "@/components/ui/globe"
 import { FireBall } from "@/components/ui/fire-ball"
 import { TextScramble } from "@/components/ui/text-scramble"
-import { Clock3, Earth, LogIn, LogOut, ShieldCheck, Swords, Lock, Rocket, Gauge, Users } from "lucide-react"
+import { Clock3, Earth, LogIn, LogOut, ShieldCheck, Swords, Lock, Rocket, Gauge, Users, ArrowLeft } from "lucide-react"
 
 const API = "http://localhost:8787"
 const ADMIN_KEY = "zenchi-admin"
@@ -24,6 +24,7 @@ type AdminOverview = {
   geoRadiusKm: number
 }
 
+type ViewMode = "arcade" | "admin" | "game"
 type Game = { id: string; title: string; genre: string; stars: string; status: "live" | "soon" }
 
 const GAMES: Game[] = [
@@ -47,6 +48,8 @@ function percent(remaining: number, limit: number) {
 }
 
 export default function App() {
+  const [view, setView] = useState<ViewMode>("arcade")
+  const [activeGame, setActiveGame] = useState<Game | null>(null)
   const [email, setEmail] = useState("")
   const [token, setToken] = useState(localStorage.getItem("zenchi_token") || "")
   const [session, setSession] = useState<MeResponse | null>(null)
@@ -58,7 +61,7 @@ export default function App() {
   const left = useMemo(() => session?.remainingMs ?? 0, [session])
   const playDisabled = !session?.active || left <= 0
 
-  const api = async (path: string, method = "GET", body?: unknown, extraHeaders?: Record<string, string>) => {
+  const api = async (path: string, method = "GET", body?: unknown, extraHeaders?: Record<string, string>, keepalive?: boolean) => {
     const res = await fetch(`${API}${path}`, {
       method,
       headers: {
@@ -67,6 +70,7 @@ export default function App() {
         ...(extraHeaders || {}),
       },
       body: body ? JSON.stringify(body) : undefined,
+      keepalive,
     })
     const data = await res.json().catch(() => ({}))
     if (!res.ok) throw new Error(data?.error || "Request failed")
@@ -96,12 +100,43 @@ export default function App() {
     if (!token) return
     refreshSession()
     loadAdmin()
-    const id = setInterval(() => {
+
+    const uiPoll = setInterval(() => {
       refreshSession()
-      loadAdmin()
-    }, 1000)
-    return () => clearInterval(id)
-  }, [token])
+      if (view === "admin") loadAdmin()
+    }, 1500)
+
+    const heartbeat = setInterval(() => {
+      if (session?.active) api("/session/heartbeat", "POST").catch(() => null)
+    }, 15000)
+
+    return () => {
+      clearInterval(uiPoll)
+      clearInterval(heartbeat)
+    }
+  }, [token, view, session?.active])
+
+  useEffect(() => {
+    const emergencyPause = () => {
+      if (!token || !session?.active) return
+      fetch(`${API}/session/stop`, {
+        method: "POST",
+        keepalive: true,
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      })
+    }
+
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") emergencyPause()
+    }
+
+    window.addEventListener("beforeunload", emergencyPause)
+    document.addEventListener("visibilitychange", onVisibility)
+    return () => {
+      window.removeEventListener("beforeunload", emergencyPause)
+      document.removeEventListener("visibilitychange", onVisibility)
+    }
+  }, [token, session?.active])
 
   const login = async () => {
     if (!email.includes("@")) return setMessage("Enter a valid email.")
@@ -173,6 +208,34 @@ export default function App() {
     }
   }
 
+  const launchGame = (g: Game) => {
+    if (playDisabled || g.status !== "live") return
+    setActiveGame(g)
+    setView("game")
+  }
+
+  if (view === "game" && activeGame) {
+    return (
+      <main className="relative min-h-screen overflow-hidden">
+        <FireBall fullScreen particleCount={18} ballColor="#ff1f35" colors={["#ff233b", "#1161ff", "#8a2be2"]} />
+        <section className="relative z-10 mx-auto flex min-h-screen max-w-4xl flex-col px-6 py-10">
+          <button className="glass mb-6 inline-flex w-fit items-center gap-2 rounded-full px-4 py-2" onClick={() => setView("arcade")}>
+            <ArrowLeft size={14} /> Back to Arcade
+          </button>
+          <div className="glass rounded-3xl p-8">
+            <p className="text-xs text-muted-foreground">Now Launching</p>
+            <h1 className="mt-2 text-4xl font-black">{activeGame.title}</h1>
+            <p className="mt-2 text-muted-foreground">Genre: {activeGame.genre}</p>
+            <p className="mt-2 text-muted-foreground">Remaining play time: {fmt(left)}</p>
+            <div className="mt-6 rounded-2xl border border-[#2b335c] bg-[#080b18] p-6 text-sm text-muted-foreground">
+              Game runtime shell ready. We can now mount your real game bundle here.
+            </div>
+          </div>
+        </section>
+      </main>
+    )
+  }
+
   return (
     <main className="grid-bg relative min-h-screen overflow-hidden">
       <FireBall fullScreen particleCount={28} ballColor="#ff1f35" colors={["#ff233b", "#1161ff", "#8a2be2"]} />
@@ -180,55 +243,33 @@ export default function App() {
       <section className="relative z-10 mx-auto flex min-h-screen max-w-6xl flex-col px-6 py-10">
         <header className="flex items-center justify-between">
           <TextScramble text="ZENCHI ARCADE" className="neon-red" />
-          <div className="glass rounded-full px-4 py-2 text-xs text-muted-foreground">Phase 2 • Secure Session + Vault</div>
+          <div className="flex gap-2">
+            <button className="glass rounded-full px-4 py-2 text-xs" onClick={() => setView("arcade")}>Arcade</button>
+            <button className="glass rounded-full px-4 py-2 text-xs" onClick={() => { setView("admin"); loadAdmin() }}>Admin</button>
+          </div>
         </header>
 
         <div className="mt-8 grid gap-6 lg:grid-cols-[1.35fr_1fr]">
           <div className="glass relative overflow-hidden rounded-3xl p-6 md:p-10">
-            <img
-              src="https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=1800&q=80"
-              alt="Space"
-              className="absolute inset-0 h-full w-full object-cover opacity-20"
-            />
+            <img src="https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=1800&q=80" alt="Space" className="absolute inset-0 h-full w-full object-cover opacity-20" />
             <div className="relative z-10">
               <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">multi-game platform</p>
-              <h1 className="mt-4 max-w-xl text-4xl font-black leading-tight md:text-6xl">
-                Cosmic play. <span className="neon-red">Strict timer.</span>
-              </h1>
-              <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-[#232a49]">
-                <div className="h-full bg-gradient-to-r from-[#ff3b4e] to-[#6f7bff]" style={{ width: `${percent(left, session?.limitMs ?? 1)}%` }} />
-              </div>
+              <h1 className="mt-4 max-w-xl text-4xl font-black leading-tight md:text-6xl">Cosmic play. <span className="neon-red">Strict timer.</span></h1>
+              <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-[#232a49]"><div className="h-full bg-gradient-to-r from-[#ff3b4e] to-[#6f7bff]" style={{ width: `${percent(left, session?.limitMs ?? 1)}%` }} /></div>
               <p className="mt-2 text-xs text-muted-foreground">Session power: {percent(left, session?.limitMs ?? 1)}%</p>
-
               <div className="mt-8 flex flex-wrap items-center gap-3">
-                <button className="btn-red inline-flex items-center gap-2" onClick={login}>
-                  <LogIn size={16} /> Authenticate
-                </button>
-                <button className="btn-red inline-flex items-center gap-2" onClick={startSession}>
-                  <Rocket size={16} /> Start Session
-                </button>
-                <button className="glass rounded-full px-5 py-3 text-sm" onClick={stopSession}>
-                  <span className="inline-flex items-center gap-2">
-                    <LogOut size={15} /> Pause / Logout
-                  </span>
-                </button>
+                <button className="btn-red inline-flex items-center gap-2" onClick={login}><LogIn size={16} /> Authenticate</button>
+                <button className="btn-red inline-flex items-center gap-2" onClick={startSession}><Rocket size={16} /> Start Session</button>
+                <button className="glass rounded-full px-5 py-3 text-sm" onClick={stopSession}><span className="inline-flex items-center gap-2"><LogOut size={15} /> Pause / Logout</span></button>
               </div>
             </div>
           </div>
 
           <aside className="glass rounded-3xl p-5 md:p-7">
-            <div className="relative mx-auto mb-4 h-52 w-full max-w-xs">
-              <Globe className="-top-10" />
-            </div>
-            <label className="text-xs text-muted-foreground">Google email (dev auth until client id is set)</label>
-            <input
-              className="mt-2 w-full rounded-xl border border-[#2f375f] bg-[#090d1a] px-4 py-3 text-sm text-white"
-              placeholder="player@gmail.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
+            <div className="relative mx-auto mb-4 h-52 w-full max-w-xs"><Globe className="-top-10" /></div>
+            <label className="text-xs text-muted-foreground">Google email (dev auth fallback)</label>
+            <input className="mt-2 w-full rounded-xl border border-[#2f375f] bg-[#090d1a] px-4 py-3 text-sm text-white" placeholder="player@gmail.com" value={email} onChange={(e) => setEmail(e.target.value)} />
             <div ref={googleBtnRef} className="mt-3" />
-
             <div className="mt-5 space-y-3 text-sm">
               <p className="flex items-center gap-2"><Clock3 size={15} className="text-primary" /> Time left: {fmt(left)}</p>
               <p className="flex items-center gap-2"><Earth size={15} className="text-primary" /> {geoLabel}</p>
@@ -238,27 +279,29 @@ export default function App() {
           </aside>
         </div>
 
-        <section className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {GAMES.map((g) => {
-            const locked = playDisabled || g.status === "soon"
-            return (
-              <article key={g.id} className="glass rounded-2xl p-4">
-                <p className="text-xs text-muted-foreground">{g.genre}</p>
-                <h3 className="mt-1 text-lg font-semibold">{g.title}</h3>
-                <p className="text-xs text-muted-foreground">{g.stars}</p>
-                <button className="mt-4 w-full rounded-xl border border-[#37406d] px-3 py-2 text-sm" disabled={locked}>
-                  {locked ? <span className="inline-flex items-center gap-2"><Lock size={14} /> Locked</span> : "Play"}
-                </button>
-              </article>
-            )
-          })}
-        </section>
-
-        <section className="mt-6 grid gap-4 md:grid-cols-3">
-          <div className="glass rounded-2xl p-4"><p className="text-xs text-muted-foreground">Admin Users</p><p className="mt-2 text-2xl font-bold inline-flex items-center gap-2"><Users size={18} /> {adminData?.users ?? 0}</p></div>
-          <div className="glass rounded-2xl p-4"><p className="text-xs text-muted-foreground">Active Sessions</p><p className="mt-2 text-2xl font-bold inline-flex items-center gap-2"><Gauge size={18} /> {adminData?.activeUsers ?? 0}</p></div>
-          <div className="glass rounded-2xl p-4"><p className="text-xs text-muted-foreground">Exhausted Accounts</p><p className="mt-2 text-2xl font-bold inline-flex items-center gap-2"><Clock3 size={18} /> {adminData?.exhaustedUsers ?? 0}</p></div>
-        </section>
+        {view === "arcade" ? (
+          <section className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {GAMES.map((g) => {
+              const locked = playDisabled || g.status === "soon"
+              return (
+                <article key={g.id} className="glass rounded-2xl p-4">
+                  <p className="text-xs text-muted-foreground">{g.genre}</p>
+                  <h3 className="mt-1 text-lg font-semibold">{g.title}</h3>
+                  <p className="text-xs text-muted-foreground">{g.stars}</p>
+                  <button className="mt-4 w-full rounded-xl border border-[#37406d] px-3 py-2 text-sm" disabled={locked} onClick={() => launchGame(g)}>
+                    {locked ? <span className="inline-flex items-center gap-2"><Lock size={14} /> Locked</span> : "Play"}
+                  </button>
+                </article>
+              )
+            })}
+          </section>
+        ) : (
+          <section className="mt-6 grid gap-4 md:grid-cols-3">
+            <div className="glass rounded-2xl p-4"><p className="text-xs text-muted-foreground">Admin Users</p><p className="mt-2 text-2xl font-bold inline-flex items-center gap-2"><Users size={18} /> {adminData?.users ?? 0}</p></div>
+            <div className="glass rounded-2xl p-4"><p className="text-xs text-muted-foreground">Active Sessions</p><p className="mt-2 text-2xl font-bold inline-flex items-center gap-2"><Gauge size={18} /> {adminData?.activeUsers ?? 0}</p></div>
+            <div className="glass rounded-2xl p-4"><p className="text-xs text-muted-foreground">Exhausted Accounts</p><p className="mt-2 text-2xl font-bold inline-flex items-center gap-2"><Clock3 size={18} /> {adminData?.exhaustedUsers ?? 0}</p></div>
+          </section>
+        )}
       </section>
     </main>
   )

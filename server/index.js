@@ -17,6 +17,7 @@ const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || ""
 const LIMIT_MS = 6 * 60 * 60 * 1000
 const GEO_RADIUS_KM = Number(process.env.GEO_RADIUS_KM || 10)
 const ADMIN_KEY = process.env.ADMIN_KEY || "zenchi-admin"
+const HEARTBEAT_GRACE_MS = Number(process.env.HEARTBEAT_GRACE_MS || 45000)
 
 const dataDir = path.resolve("data")
 if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true })
@@ -71,6 +72,7 @@ function ensureSession(db, userId) {
       startedAt: null,
       lastLat: null,
       lastLng: null,
+      heartbeatAt: null,
     }
   }
   return db.sessions[userId]
@@ -79,12 +81,20 @@ function ensureSession(db, userId) {
 function flushSession(db, userId) {
   const s = ensureSession(db, userId)
   if (!s.active || !s.startedAt) return s
+
   const now = Date.now()
-  const elapsed = Math.max(0, now - s.startedAt)
+  const heartbeatAt = s.heartbeatAt || s.startedAt
+  const hardStopAt = heartbeatAt + HEARTBEAT_GRACE_MS
+  const effectiveNow = Math.min(now, hardStopAt)
+
+  const elapsed = Math.max(0, effectiveNow - s.startedAt)
   s.remainingMs = Math.max(0, s.remainingMs - elapsed)
   s.totalUsedMs += elapsed
-  s.active = s.remainingMs > 0
-  s.startedAt = s.active ? now : null
+
+  const timeoutExpired = now > hardStopAt
+  s.active = s.remainingMs > 0 && !timeoutExpired
+  s.startedAt = s.active ? effectiveNow : null
+
   return s
 }
 
@@ -154,12 +164,25 @@ app.post("/session/start", auth, (req, res) => {
   if (!s.active) {
     s.active = true
     s.startedAt = Date.now()
-    s.lastLat = parsed.data.lat
-    s.lastLng = parsed.data.lng
   }
+  s.lastLat = parsed.data.lat
+  s.lastLng = parsed.data.lng
+  s.heartbeatAt = Date.now()
 
   writeDb(db)
   res.json({ ok: true, remainingMs: s.remainingMs })
+})
+
+app.post("/session/heartbeat", auth, (req, res) => {
+  const db = readDb()
+  const user = db.users.find((u) => u.id === req.user.uid)
+  if (!user) return res.status(401).json({ error: "User not found" })
+
+  const s = flushSession(db, user.id)
+  if (s.active) s.heartbeatAt = Date.now()
+  writeDb(db)
+
+  res.json({ ok: true, active: s.active, remainingMs: s.remainingMs })
 })
 
 app.post("/session/stop", auth, (req, res) => {
