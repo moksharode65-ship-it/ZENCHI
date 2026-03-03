@@ -4,7 +4,7 @@ import createGlobe, { type COBEOptions } from "cobe"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { cn } from "@/lib/utils"
 
-export type GlobePreset = "earth" | "red" | "blue" | "mixed"
+export type GlobePreset = "earth" | "white" | "red" | "blue" | "mixed"
 
 const BASE_CONFIG: COBEOptions = {
   width: 800,
@@ -39,6 +39,11 @@ const PRESET_COLORS: Record<GlobePreset, Pick<COBEOptions, "baseColor" | "marker
     baseColor: [42 / 255, 93 / 255, 138 / 255],
     markerColor: [118 / 255, 196 / 255, 121 / 255],
     glowColor: [120 / 255, 170 / 255, 220 / 255],
+  },
+  white: {
+    baseColor: [1, 1, 1],
+    markerColor: [251 / 255, 100 / 255, 21 / 255],
+    glowColor: [1, 1, 1],
   },
   red: {
     baseColor: [28 / 255, 7 / 255, 16 / 255],

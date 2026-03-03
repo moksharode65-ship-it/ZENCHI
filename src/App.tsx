@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { Globe } from "@/components/ui/globe"
+import { Globe, type GlobePreset } from "@/components/ui/globe"
 import { FireBall } from "@/components/ui/fire-ball"
 import { TextScramble } from "@/components/ui/text-scramble"
 import { GradientButton } from "@/components/ui/gradient-button"
@@ -61,6 +61,7 @@ export default function App() {
   const [clockNow, setClockNow] = useState(Date.now())
   const [geoLabel, setGeoLabel] = useState("location pending")
   const [message, setMessage] = useState("Log in with email and password, then start your session.")
+  const [globePreset, setGlobePreset] = useState<GlobePreset>("earth")
 
   const left = useMemo(() => {
     if (!session) return 0
@@ -322,7 +323,11 @@ export default function App() {
           </div>
 
           <aside className="glass rounded-3xl p-5 md:p-7">
-            <div className="relative mx-auto mb-4 h-52 w-full max-w-xs"><Globe className="-top-10" preset="earth" /></div>
+            <div className="relative mx-auto mb-4 h-52 w-full max-w-xs"><Globe className="-top-10" preset={globePreset} /></div>
+            <div className="mb-4 flex gap-2">
+              <button className={`rounded-full px-3 py-1 text-xs ${globePreset === "earth" ? "btn-red" : "glass"}`} onClick={() => setGlobePreset("earth")}>Earth</button>
+              <button className={`rounded-full px-3 py-1 text-xs ${globePreset === "white" ? "btn-red" : "glass"}`} onClick={() => setGlobePreset("white")}>White</button>
+            </div>
             <div className="mt-5 space-y-3 text-sm">
               <p className="flex items-center gap-2"><Clock3 size={15} className="text-primary" /> Time left: {fmt(left)}</p>
               <p className="flex items-center gap-2"><Earth size={15} className="text-primary" /> {geoLabel}</p>
