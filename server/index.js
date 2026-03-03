@@ -6,6 +6,7 @@ import { OAuth2Client } from "google-auth-library"
 import { z } from "zod"
 import fs from "node:fs"
 import path from "node:path"
+import crypto from "node:crypto"
 
 const app = express()
 app.use(cors({ origin: process.env.CLIENT_ORIGIN || "http://localhost:5173" }))
@@ -33,6 +34,21 @@ const readDb = () => {
 }
 
 const writeDb = (db) => fs.writeFileSync(dbPath, JSON.stringify(db, null, 2))
+
+const hashPassword = (password) => {
+  const salt = crypto.randomBytes(16).toString("hex")
+  const hash = crypto.scryptSync(password, salt, 64).toString("hex")
+  return `${salt}:${hash}`
+}
+
+const verifyPassword = (password, stored) => {
+  if (!stored || !stored.includes(":")) return false
+  const [salt, key] = stored.split(":")
+  const hashBuffer = crypto.scryptSync(password, salt, 64)
+  const keyBuffer = Buffer.from(key, "hex")
+  if (hashBuffer.length !== keyBuffer.length) return false
+  return crypto.timingSafeEqual(hashBuffer, keyBuffer)
+}
 
 const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID || undefined)
 
@@ -100,6 +116,46 @@ function flushSession(db, userId) {
 
 app.get("/health", (_, res) => res.json({ ok: true }))
 
+app.post("/auth/signup", (req, res) => {
+  const parsed = z.object({ email: z.string().email(), password: z.string().min(6) }).safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: "Email and password (min 6 chars) required" })
+
+  const db = readDb()
+  const email = parsed.data.email.toLowerCase()
+  const existing = db.users.find((u) => u.email === email)
+  if (existing) return res.status(409).json({ error: "Account already exists" })
+
+  const user = {
+    id: Date.now(),
+    email,
+    googleSub: null,
+    passwordHash: hashPassword(parsed.data.password),
+    createdAt: Date.now(),
+  }
+
+  db.users.push(user)
+  ensureSession(db, user.id)
+  writeDb(db)
+
+  res.json({ token: signToken(user), user: { email: user.email } })
+})
+
+app.post("/auth/login", (req, res) => {
+  const parsed = z.object({ email: z.string().email(), password: z.string().min(1) }).safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: "Email and password required" })
+
+  const db = readDb()
+  const email = parsed.data.email.toLowerCase()
+  const user = db.users.find((u) => u.email === email)
+  if (!user || !verifyPassword(parsed.data.password, user.passwordHash)) {
+    return res.status(401).json({ error: "Invalid credentials" })
+  }
+
+  ensureSession(db, user.id)
+  writeDb(db)
+  res.json({ token: signToken(user), user: { email: user.email } })
+})
+
 app.post("/auth/google", async (req, res) => {
   const parsed = z.object({ idToken: z.string().optional(), email: z.string().email().optional() }).safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: "Invalid auth payload" })
@@ -123,7 +179,7 @@ app.post("/auth/google", async (req, res) => {
   const db = readDb()
   let user = db.users.find((u) => u.email === email.toLowerCase())
   if (!user) {
-    user = { id: Date.now(), email: email.toLowerCase(), googleSub: sub || null, createdAt: Date.now() }
+    user = { id: Date.now(), email: email.toLowerCase(), googleSub: sub || null, passwordHash: null, createdAt: Date.now() }
     db.users.push(user)
   }
   ensureSession(db, user.id)

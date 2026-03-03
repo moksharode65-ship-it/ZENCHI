@@ -44,6 +44,7 @@ function percent(remaining: number, limit: number) {
 export default function App() {
   const [authView, setAuthView] = useState<AuthView>(localStorage.getItem("zenchi_token") ? "home" : "signin")
   const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
   const [token, setToken] = useState(localStorage.getItem("zenchi_token") || "")
   const [session, setSession] = useState<MeResponse | null>(null)
   const [sessionSyncedAt, setSessionSyncedAt] = useState(Date.now())
@@ -130,12 +131,16 @@ export default function App() {
 
   const authWithEmail = async () => {
     if (!email.includes("@")) return setMessage("Enter a valid email.")
+    if (password.length < 6) return setMessage("Password should be at least 6 characters.")
+
     try {
-      const data = await api("/auth/google", "POST", { email })
+      const endpoint = authView === "login" ? "/auth/login" : "/auth/signup"
+      const data = await api(endpoint, "POST", { email, password })
       localStorage.setItem("zenchi_token", data.token)
       setToken(data.token)
       setAuthView("home")
-      setMessage("Signed in. You can start session now.")
+      setMessage(authView === "login" ? "Logged in successfully." : "Account created and signed in.")
+      setPassword("")
     } catch (e) {
       setMessage(e instanceof Error ? e.message : "Authentication failed")
     }
@@ -167,6 +172,7 @@ export default function App() {
           },
         })
         g.accounts.id.renderButton(googleBtnRef.current, { theme: "filled_black", size: "large", text: "signin_with" })
+        g.accounts.id.prompt()
       }
       document.body.appendChild(s)
     }
@@ -248,9 +254,17 @@ export default function App() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                   />
+                  <label className="mt-3 block text-xs text-muted-foreground">Password</label>
+                  <input
+                    type="password"
+                    className="mt-2 w-full rounded-xl border border-[#2f375f] bg-[#090d1a] px-4 py-3 text-sm text-white"
+                    placeholder="Enter password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
                   <div className="mt-4 flex flex-col gap-3">
-                    <GradientButton onClick={authWithEmail}>{authView === "login" ? "Login" : "Create account / Sign in"}</GradientButton>
-                    <GradientButton variant="variant" onClick={() => setAuthView(authView === "signin" ? "login" : "signin")}>{authView === "signin" ? "Go to Login" : "Go to Sign In"}</GradientButton>
+                    <GradientButton onClick={authWithEmail}>{authView === "login" ? "Login with Password" : "Sign Up with Password"}</GradientButton>
+                    <GradientButton variant="variant" onClick={() => setAuthView(authView === "signin" ? "login" : "signin")}>{authView === "signin" ? "Already have account? Login" : "New here? Sign In"}</GradientButton>
                     <div ref={googleBtnRef} className="pt-2" />
                   </div>
                 </>
