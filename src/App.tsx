@@ -28,6 +28,9 @@ const GAMES: Game[] = [
   { id: "orbit-ops", title: "Orbit Ops", genre: "Puzzle", stars: "★★★☆☆", status: "live" },
 ]
 
+const FIRE_COLORS_AUTH = ["#ff233b", "#8a2be2", "#f44336"]
+const FIRE_COLORS_HOME = ["#ff233b", "#1161ff", "#8a2be2"]
+
 function fmt(ms: number) {
   const total = Math.max(0, Math.floor(ms / 1000))
   const h = String(Math.floor(total / 3600)).padStart(2, "0")
@@ -223,7 +226,7 @@ export default function App() {
     return (
       <main className="relative min-h-screen overflow-hidden">
         <WebGLShader />
-        <FireBall fullScreen particleCount={24} ballColor="#ff1f35" colors={["#ff233b", "#8a2be2", "#f44336"]} />
+        <FireBall fullScreen particleCount={24} ballColor="#ff1f35" colors={FIRE_COLORS_AUTH} />
 
         <section className="relative z-20 mx-auto flex min-h-screen max-w-5xl items-center justify-center px-6 py-10">
           <div className="glass grid w-full max-w-4xl gap-6 rounded-3xl p-6 md:grid-cols-[1.1fr_1fr] md:p-8">
@@ -280,7 +283,7 @@ export default function App() {
   return (
     <main className="grid-bg relative min-h-screen overflow-hidden">
       <WebGLShader />
-      <FireBall fullScreen particleCount={28} ballColor="#ff1f35" colors={["#ff233b", "#1161ff", "#8a2be2"]} />
+      <FireBall fullScreen particleCount={28} ballColor="#ff1f35" colors={FIRE_COLORS_HOME} />
 
       <section className="relative z-20 mx-auto flex min-h-screen max-w-6xl flex-col px-6 py-10">
         <header className="flex items-center justify-between">

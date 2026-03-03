@@ -28,13 +28,16 @@ type Particle = {
   life: number
 }
 
+const DEFAULT_COLORS: string[] = ["#ff0000", "#0000ff", "#00ff00"]
+const DEFAULT_PARTICLE_RADIUS_RANGE: [number, number] = [2, 4]
+
 export function FireBall({
-  colors = ["#ff0000", "#0000ff", "#00ff00"],
+  colors = DEFAULT_COLORS,
   background = "transparent",
   blur = 4,
   blobRadius = 8,
   ballColor = "blue",
-  particleRadiusRange = [2, 4],
+  particleRadiusRange = DEFAULT_PARTICLE_RADIUS_RANGE,
   useXorComposite = true,
   particleCount = 50,
   followStrength = 0.2,
