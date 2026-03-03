@@ -1,13 +1,14 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Globe, type GlobePreset } from "@/components/ui/globe"
 import { FireBall } from "@/components/ui/fire-ball"
 import { TextScramble } from "@/components/ui/text-scramble"
 import { GradientButton } from "@/components/ui/gradient-button"
 import { LiquidButton } from "@/components/ui/liquid-glass-button"
 import { WebGLShader } from "@/components/ui/web-gl-shader"
-import { Clock3, Earth, LogOut, ShieldCheck, Swords, Lock, Rocket } from "lucide-react"
+import { Clock3, LogOut, ShieldCheck, Swords, Lock, Rocket, ArrowLeft } from "lucide-react"
 
-const API = "http://localhost:8787"
+const API = (import.meta.env.VITE_API_URL as string) || "http://localhost:8787"
+const GOOGLE_CLIENT_ID = (import.meta.env.VITE_GOOGLE_CLIENT_ID as string) || ""
 
 type MeResponse = {
   email: string
@@ -19,19 +20,62 @@ type MeResponse = {
 }
 
 type AuthResponse = {
-  token: string
+  success: boolean
   user?: { email: string }
-  upgraded?: boolean
+  session?: MeResponse
 }
 
-type AuthView = "signup" | "login" | "logout" | "home"
+type AuthView = "login" | "logout" | "home"
+type GamePage = "home" | "genre"
 type Game = { id: string; title: string; genre: string; stars: string; status: "live" | "soon" }
 
+type GoogleCredentialResponse = { credential?: string }
+
+type DeviceFingerprintPayload = {
+  userAgent: string
+  platform: string
+  language: string
+  timezone: string
+  screen: string
+  colorDepth: number
+  hardwareConcurrency: number
+  deviceMemory: number
+  touchSupport: number
+  canvas: string
+}
+
+type GoogleWindow = Window & {
+  google?: {
+    accounts?: {
+      id?: {
+        initialize: (cfg: {
+          client_id: string
+          callback: (response: GoogleCredentialResponse) => void
+          auto_select?: boolean
+          cancel_on_tap_outside?: boolean
+        }) => void
+        renderButton: (
+          parent: HTMLElement,
+          options: {
+            type?: "standard" | "icon"
+            theme?: "outline" | "filled_blue" | "filled_black"
+            size?: "large" | "medium" | "small"
+            text?: "signin_with" | "signup_with" | "continue_with" | "signin"
+            shape?: "rectangular" | "pill" | "circle" | "square"
+            width?: string | number
+            logo_alignment?: "left" | "center"
+          },
+        ) => void
+      }
+    }
+  }
+}
+
 const GAMES: Game[] = [
-  { id: "nebula-run", title: "Nebula Run", genre: "Arcade", stars: "★★★★☆", status: "live" },
-  { id: "quantum-drift", title: "Quantum Drift", genre: "Racer", stars: "★★★★★", status: "soon" },
-  { id: "void-strike", title: "Action", genre: "Shooter", stars: "★★★★☆", status: "soon" },
-  { id: "orbit-ops", title: "Orbit Ops", genre: "Puzzle", stars: "★★★☆☆", status: "live" },
+  { id: "nebula-run", title: "Nebula Run", genre: "Arcade", stars: "?????", status: "live" },
+  { id: "quantum-drift", title: "Quantum Drift", genre: "Racer", stars: "?????", status: "soon" },
+  { id: "void-strike", title: "Action", genre: "Shooter", stars: "?????", status: "soon" },
+  { id: "orbit-ops", title: "Orbit Ops", genre: "Puzzle", stars: "?????", status: "live" },
 ]
 
 const FIRE_COLORS_AUTH = ["#ff233b", "#8a2be2", "#f44336"]
@@ -50,18 +94,55 @@ function percent(remaining: number, limit: number) {
   return Math.round((remaining / limit) * 100)
 }
 
+function fingerprintCanvasSignature() {
+  const canvas = document.createElement("canvas")
+  canvas.width = 220
+  canvas.height = 32
+  const ctx = canvas.getContext("2d")
+  if (!ctx) return ""
+
+  ctx.textBaseline = "top"
+  ctx.font = "14px Arial"
+  ctx.fillStyle = "#f60"
+  ctx.fillRect(125, 1, 62, 20)
+  ctx.fillStyle = "#069"
+  ctx.fillText("zenchi-fingerprint", 2, 15)
+  ctx.fillStyle = "rgba(102,204,0,0.7)"
+  ctx.fillText("zenchi-fingerprint", 4, 17)
+
+  return canvas.toDataURL()
+}
+
+function buildFingerprintPayload(): DeviceFingerprintPayload {
+  return {
+    userAgent: navigator.userAgent || "",
+    platform: navigator.platform || "",
+    language: navigator.language || "",
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "",
+    screen: `${window.screen.width}x${window.screen.height}`,
+    colorDepth: Number(window.screen.colorDepth || 0),
+    hardwareConcurrency: Number(navigator.hardwareConcurrency || 0),
+    deviceMemory: Number((navigator as Navigator & { deviceMemory?: number }).deviceMemory || 0),
+    touchSupport: Number(navigator.maxTouchPoints || 0),
+    canvas: fingerprintCanvasSignature(),
+  }
+}
+
 export default function App() {
-  const [authView, setAuthView] = useState<AuthView>(localStorage.getItem("zenchi_token") ? "home" : "login")
+  const [authView, setAuthView] = useState<AuthView>("login")
   const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
-  const [token, setToken] = useState(localStorage.getItem("zenchi_token") || "")
   const [session, setSession] = useState<MeResponse | null>(null)
   const [sessionSyncedAt, setSessionSyncedAt] = useState(Date.now())
   const [clockNow, setClockNow] = useState(Date.now())
-  const [geoLabel, setGeoLabel] = useState("location pending")
-  const [message, setMessage] = useState("Log in with email and password, then start your session.")
+  const [message, setMessage] = useState("Sign in with Google to continue.")
   const [globePreset, setGlobePreset] = useState<GlobePreset>("earth")
+  const [gamePage, setGamePage] = useState<GamePage>("home")
+  const [selectedGenre, setSelectedGenre] = useState<string>("Arcade")
+  const [autoLogoutDone, setAutoLogoutDone] = useState(false)
+  const [autoResumeTried, setAutoResumeTried] = useState(false)
+  const [googleReady, setGoogleReady] = useState(false)
+  const [authLoading, setAuthLoading] = useState(false)
+  const googleButtonRef = useRef<HTMLDivElement | null>(null)
 
   const left = useMemo(() => {
     if (!session) return 0
@@ -70,14 +151,17 @@ export default function App() {
   }, [session, clockNow, sessionSyncedAt])
 
   const playDisabled = !session?.active || left <= 0
+  const genres = useMemo(() => Array.from(new Set(GAMES.map((g) => g.genre))), [])
+  const visibleGames = useMemo(
+    () => (gamePage === "genre" ? GAMES.filter((g) => g.genre === selectedGenre) : GAMES),
+    [gamePage, selectedGenre],
+  )
 
   const api = async (path: string, method = "GET", body?: unknown, keepalive?: boolean) => {
     const res = await fetch(`${API}${path}`, {
       method,
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
+      credentials: "include",
+      headers: body ? { "Content-Type": "application/json" } : undefined,
       body: body ? JSON.stringify(body) : undefined,
       keepalive,
     })
@@ -88,15 +172,64 @@ export default function App() {
   }
 
   const refreshSession = async () => {
-    if (!token) return
     try {
       const me = (await api("/session/me")) as MeResponse
       setSession(me)
+      setEmail(me.email)
       setSessionSyncedAt(Date.now())
-    } catch (e) {
-      setMessage(e instanceof Error ? e.message : "Failed to refresh session")
+      setAuthView("home")
+    } catch {
+      setSession(null)
     }
   }
+
+  const bootstrapAuth = async () => {
+    try {
+      const me = (await api("/auth/me")) as { user: { email: string }; session: MeResponse }
+      setEmail(me.user.email)
+      setSession(me.session)
+      setSessionSyncedAt(Date.now())
+      setAuthView("home")
+      setMessage("")
+    } catch {
+      setAuthView("login")
+    }
+  }
+
+  const handleGoogleCredential = async (response: GoogleCredentialResponse) => {
+    const credential = response.credential || ""
+    if (!credential) {
+      setMessage("Google login failed. Missing credential token.")
+      return
+    }
+
+    setAuthLoading(true)
+    try {
+      const fingerprint = buildFingerprintPayload()
+      const data = (await api("/auth/google", "POST", {
+        credential,
+        fingerprint,
+      })) as AuthResponse
+      const accountEmail = data.user?.email || ""
+
+      setEmail(accountEmail)
+      if (data.session) {
+        setSession(data.session)
+        setSessionSyncedAt(Date.now())
+      }
+      setAutoLogoutDone(false)
+      setAuthView("home")
+      setMessage("")
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : "Authentication failed")
+    } finally {
+      setAuthLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    void bootstrapAuth()
+  }, [])
 
   useEffect(() => {
     const id = setInterval(() => setClockNow(Date.now()), 1000)
@@ -104,115 +237,127 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    if (!token) return
-    refreshSession()
-    const uiPoll = setInterval(refreshSession, 2000)
+    if (authView !== "home") return
+    void refreshSession()
+
+    const uiPoll = setInterval(() => {
+      void refreshSession()
+    }, 2000)
+
     const heartbeat = setInterval(() => {
-      if (session?.active) api("/session/heartbeat", "POST").catch(() => null)
+      if (session?.active) {
+        void api("/session/heartbeat", "POST", undefined, true).catch(() => null)
+      }
     }, 15000)
 
     return () => {
       clearInterval(uiPoll)
       clearInterval(heartbeat)
     }
-  }, [token, session?.active])
+  }, [authView, session?.active])
 
   useEffect(() => {
-    const emergencyPause = () => {
-      if (!token || !session?.active) return
-      fetch(`${API}/session/stop`, {
-        method: "POST",
-        keepalive: true,
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    if (authView !== "home") {
+      setAutoLogoutDone(false)
+      setAutoResumeTried(false)
+      return
+    }
+    if (!session) return
+    if (left > 0 || autoLogoutDone) return
+    setAutoLogoutDone(true)
+    setMessage("Time limit exhausted. Logging out.")
+    void signOut("Time limit exhausted.")
+  }, [authView, session, left, autoLogoutDone])
+
+  useEffect(() => {
+    if (authView !== "home" || !session) return
+    if (session.active || session.remainingMs <= 0 || autoResumeTried) return
+
+    setAutoResumeTried(true)
+    resumeSession(true)
+  }, [authView, session?.active, session?.remainingMs, autoResumeTried])
+
+  useEffect(() => {
+    if (authView !== "login") return
+
+    if (!GOOGLE_CLIENT_ID) {
+      setMessage("Missing VITE_GOOGLE_CLIENT_ID in .env")
+      return
+    }
+
+    const w = window as GoogleWindow
+    const scriptId = "google-identity-script"
+
+    const initializeButton = () => {
+      if (!googleButtonRef.current || !w.google?.accounts?.id) return
+
+      w.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: handleGoogleCredential,
+        auto_select: false,
+        cancel_on_tap_outside: true,
       })
+
+      googleButtonRef.current.innerHTML = ""
+      w.google.accounts.id.renderButton(googleButtonRef.current, {
+        type: "standard",
+        theme: "outline",
+        size: "large",
+        text: "continue_with",
+        shape: "pill",
+        width: 320,
+      })
+
+      setGoogleReady(true)
     }
 
-    const onVisibility = () => {
-      if (document.visibilityState === "hidden") emergencyPause()
+    if (w.google?.accounts?.id) {
+      initializeButton()
+      return
     }
 
-    window.addEventListener("beforeunload", emergencyPause)
-    document.addEventListener("visibilitychange", onVisibility)
-    return () => {
-      window.removeEventListener("beforeunload", emergencyPause)
-      document.removeEventListener("visibilitychange", onVisibility)
+    const existing = document.getElementById(scriptId) as HTMLScriptElement | null
+    if (existing) {
+      existing.addEventListener("load", initializeButton, { once: true })
+      return
     }
-  }, [token, session?.active])
 
-  const authWithEmail = async () => {
-    const authEmail = email.trim().toLowerCase()
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(authEmail)) return setMessage("Enter a valid email.")
-    if (password.length < 6) return setMessage("Password should be at least 6 characters.")
-    if (authView === "signup" && password !== confirmPassword) return setMessage("Password and confirm password must match.")
+    const script = document.createElement("script")
+    script.id = scriptId
+    script.src = "https://accounts.google.com/gsi/client"
+    script.async = true
+    script.defer = true
+    script.onload = initializeButton
+    script.onerror = () => setMessage("Failed to load Google Sign-In script.")
+    document.head.appendChild(script)
+  }, [authView])
 
-    try {
-      const endpoint = authView === "login" ? "/auth/login" : "/auth/signup"
-      const data = (await api(endpoint, "POST", { email: authEmail, password })) as AuthResponse
-      const accountEmail = data.user?.email || authEmail
-      localStorage.setItem("zenchi_token", data.token)
-      setToken(data.token)
-      setEmail(accountEmail)
-      setAuthView("home")
-      setMessage(
-        authView === "login"
-          ? `Logged in as ${accountEmail}.`
-          : data.upgraded
-            ? `Password set for existing account. Logged in as ${accountEmail}.`
-            : `Account created and signed in as ${accountEmail}.`,
-      )
-      setPassword("")
-      setConfirmPassword("")
-    } catch (e) {
-      const authError = e instanceof Error ? e.message : "Authentication failed"
-      if (authError.includes("No password set")) setAuthView("signup")
-      setMessage(authError)
-    }
+  const resumeSession = (silent = false) => {
+    void (async () => {
+      try {
+        await api("/session/start", "POST", {})
+        await refreshSession()
+        if (!silent) setMessage("Session active. Timer running.")
+      } catch (e) {
+        setMessage(e instanceof Error ? e.message : "Could not start session")
+      }
+    })()
   }
 
-  const startSession = () => {
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        setGeoLabel(`${pos.coords.latitude.toFixed(3)}, ${pos.coords.longitude.toFixed(3)}`)
-        try {
-          await api("/session/start", "POST", { lat: pos.coords.latitude, lng: pos.coords.longitude })
-          await refreshSession()
-          setMessage("Session started. Timer running.")
-        } catch (e) {
-          setMessage(e instanceof Error ? e.message : "Could not start session")
-        }
-      },
-      () => setMessage("Location permission is required."),
-      { enableHighAccuracy: false, timeout: 10000 },
-    )
-  }
-
-  const stopSession = async () => {
+  const signOut = async (logoutMessage = "Logged out.") => {
     try {
-      await api("/session/stop", "POST")
-      await refreshSession()
-      setMessage("Session paused.")
-    } catch (e) {
-      setMessage(e instanceof Error ? e.message : "Could not stop session")
-    }
-  }
-
-  const signOut = async () => {
-    try {
-      await api("/session/stop", "POST")
+      await api("/auth/logout", "POST")
     } catch {
       // ignore
     }
-    localStorage.removeItem("zenchi_token")
-    setToken("")
+
     setSession(null)
     setEmail("")
-    setPassword("")
-    setConfirmPassword("")
     setAuthView("login")
-    setMessage("Logged out.")
+    setMessage(logoutMessage)
   }
 
-  if (authView === "signup" || authView === "login" || authView === "logout") {
+  if (authView === "login" || authView === "logout") {
     return (
       <main className="relative min-h-screen overflow-hidden">
         <WebGLShader />
@@ -222,8 +367,8 @@ export default function App() {
           <div className="glass grid w-full max-w-4xl gap-6 rounded-3xl p-6 md:grid-cols-[1.1fr_1fr] md:p-8">
             <div className="space-y-5">
               <TextScramble text="ZENCHI ACCESS" className="neon-red" />
-              <h1 className="text-4xl font-black md:text-5xl">{authView === "logout" ? "Logout" : authView === "login" ? "Login" : "Sign Up"}</h1>
-              <p className="text-sm text-muted-foreground">Red-space arcade gate. Secure auth + 6-hour session lock + geo protection.</p>
+              <h1 className="text-4xl font-black md:text-5xl">{authView === "logout" ? "Logout" : "Google Login"}</h1>
+              <p className="text-sm text-muted-foreground">One device can be bound to only one account permanently.</p>
               <img
                 src="https://images.unsplash.com/photo-1462331940025-496dfbfc7564?auto=format&fit=crop&w=1600&q=80"
                 alt="space"
@@ -235,54 +380,18 @@ export default function App() {
               {authView === "logout" ? (
                 <div className="space-y-4">
                   <p className="text-sm text-muted-foreground">Confirm logout from ZENCHI.</p>
-                  <GradientButton className="w-full" onClick={signOut}>Confirm Logout</GradientButton>
+                  <GradientButton className="w-full" onClick={() => void signOut()}>Confirm Logout</GradientButton>
                   <LiquidButton variant="outline" className="w-full" onClick={() => setAuthView("home")}>Cancel</LiquidButton>
                 </div>
               ) : (
-                <>
-                  <label className="text-xs text-muted-foreground">Email</label>
-                  <input
-                    className="mt-2 w-full rounded-xl border border-[#2f375f] bg-[#090d1a] px-4 py-3 text-sm text-white"
-                    placeholder="player@gmail.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") authWithEmail()
-                    }}
-                  />
-                  <label className="mt-3 block text-xs text-muted-foreground">Password</label>
-                  <input
-                    type="password"
-                    className="mt-2 w-full rounded-xl border border-[#2f375f] bg-[#090d1a] px-4 py-3 text-sm text-white"
-                    placeholder="Enter password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") authWithEmail()
-                    }}
-                  />
-                  {authView === "signup" ? (
-                    <>
-                      <label className="mt-3 block text-xs text-muted-foreground">Confirm Password</label>
-                      <input
-                        type="password"
-                        className="mt-2 w-full rounded-xl border border-[#2f375f] bg-[#090d1a] px-4 py-3 text-sm text-white"
-                        placeholder="Re-enter password"
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") authWithEmail()
-                        }}
-                      />
-                    </>
-                  ) : null}
-                  <div className="mt-4 flex flex-col gap-3">
-                    <GradientButton onClick={authWithEmail}>{authView === "login" ? "Login with Password" : "Create Account"}</GradientButton>
-                    <GradientButton variant="variant" onClick={() => setAuthView(authView === "login" ? "signup" : "login")}>
-                      {authView === "login" ? "New user? Sign Up" : "Already registered? Login"}
-                    </GradientButton>
+                <div className="space-y-4">
+                  <p className="text-xs text-muted-foreground">Use your Gmail account. Device binding and validation happen on the server.</p>
+                  <div className="flex justify-center rounded-xl border border-[#2f375f] bg-[#090d1a] p-4">
+                    <div ref={googleButtonRef} />
                   </div>
-                </>
+                  {!googleReady ? <p className="text-xs text-muted-foreground">Loading Google Sign-In...</p> : null}
+                  {authLoading ? <p className="text-xs text-muted-foreground">Authorizing...</p> : null}
+                </div>
               )}
               <p className="mt-4 text-xs text-muted-foreground">{message}</p>
             </div>
@@ -316,8 +425,7 @@ export default function App() {
               </div>
               <p className="mt-2 text-xs text-muted-foreground">Session power: {percent(left, session?.limitMs ?? 1)}%</p>
               <div className="mt-8 flex flex-wrap items-center gap-3">
-                <GradientButton onClick={startSession}><Rocket size={16} /> Start Session</GradientButton>
-                <GradientButton variant="variant" onClick={stopSession}>Pause Session</GradientButton>
+                <GradientButton onClick={() => resumeSession()}><Rocket size={16} /> Resume Session</GradientButton>
               </div>
             </div>
           </div>
@@ -325,33 +433,60 @@ export default function App() {
           <aside className="glass rounded-3xl p-5 md:p-7">
             <div className="relative mx-auto mb-4 h-52 w-full max-w-xs"><Globe className="-top-10" preset={globePreset} /></div>
             <div className="mb-4 flex gap-2">
-              <button className={`rounded-full px-3 py-1 text-xs ${globePreset === "earth" ? "btn-red" : "glass"}`} onClick={() => setGlobePreset("earth")}>Earth</button>
-              <button className={`rounded-full px-3 py-1 text-xs ${globePreset === "white" ? "btn-red" : "glass"}`} onClick={() => setGlobePreset("white")}>White</button>
+              <button className={`rounded-full px-3 py-1 text-xs ${globePreset === "earth" ? "btn-red" : "glass"}`} onClick={() => setGlobePreset("earth")}>Terra</button>
+              <button className={`rounded-full px-3 py-1 text-xs ${globePreset === "white" ? "btn-red" : "glass"}`} onClick={() => setGlobePreset("white")}>Nivara</button>
             </div>
             <div className="mt-5 space-y-3 text-sm">
               <p className="flex items-center gap-2"><Clock3 size={15} className="text-primary" /> Time left: {fmt(left)}</p>
-              <p className="flex items-center gap-2"><Earth size={15} className="text-primary" /> {geoLabel}</p>
               <p className="flex items-center gap-2"><ShieldCheck size={15} className="text-primary" /> Logged in as: {session?.email || email}</p>
-              <p className="flex items-center gap-2"><Rocket size={15} className="text-primary" /> {message}</p>
               <p className="flex items-center gap-2"><Swords size={15} className="text-primary" /> Game launch: {playDisabled ? "Locked" : "Ready"}</p>
             </div>
           </aside>
         </div>
 
-        <section className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {GAMES.map((g) => {
-            const locked = playDisabled || g.status === "soon"
-            return (
-              <article key={g.id} className="glass rounded-2xl p-4">
-                <p className="text-xs text-muted-foreground">{g.genre}</p>
-                <h3 className="mt-1 text-lg font-semibold">{g.title}</h3>
-                <p className="text-xs text-muted-foreground">{g.stars}</p>
-                <button className="mt-4 w-full rounded-xl border border-[#37406d] px-3 py-2 text-sm" disabled={locked}>
-                  {locked ? <span className="inline-flex items-center gap-2"><Lock size={14} /> Locked</span> : "Play"}
-                </button>
-              </article>
-            )
-          })}
+        <section className="mt-6">
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <button
+              className={`rounded-full px-3 py-1 text-xs ${gamePage === "home" ? "btn-red" : "glass"}`}
+              onClick={() => setGamePage("home")}
+            >
+              All Games
+            </button>
+            {genres.map((genre) => (
+              <button
+                key={genre}
+                className={`rounded-full px-3 py-1 text-xs ${gamePage === "genre" && selectedGenre === genre ? "btn-red" : "glass"}`}
+                onClick={() => {
+                  setSelectedGenre(genre)
+                  setGamePage("genre")
+                }}
+              >
+                {genre}
+              </button>
+            ))}
+          </div>
+
+          {gamePage === "genre" ? (
+            <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
+              <ArrowLeft size={14} /> Viewing: {selectedGenre}
+            </div>
+          ) : null}
+
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {visibleGames.map((g) => {
+              const locked = playDisabled || g.status === "soon"
+              return (
+                <article key={g.id} className="glass rounded-2xl p-4">
+                  <p className="text-xs text-muted-foreground">{g.genre}</p>
+                  <h3 className="mt-1 text-lg font-semibold">{g.title}</h3>
+                  <p className="text-xs text-muted-foreground">{g.stars}</p>
+                  <button className="mt-4 w-full rounded-xl border border-[#37406d] px-3 py-2 text-sm" disabled={locked}>
+                    {locked ? <span className="inline-flex items-center gap-2"><Lock size={14} /> Locked</span> : "Play"}
+                  </button>
+                </article>
+              )
+            })}
+          </div>
         </section>
       </section>
     </main>
