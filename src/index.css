@@ -1,0 +1,67 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+:root {
+  --background: #070910;
+  --foreground: #e8ecff;
+  --muted-foreground: #99a3cc;
+  --border: #1e2748;
+  --primary: oklch(0.85 0.15 55);
+}
+
+.dark {
+  --primary: oklch(0.85 0.15 55);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  width: 100%;
+  min-height: 100%;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  background: radial-gradient(circle at 20% 20%, #12081f 0, #070910 35%, #05060a 100%);
+  color: var(--foreground);
+}
+
+.text-foreground { color: var(--foreground); }
+.text-muted-foreground { color: var(--muted-foreground); }
+.bg-background { background-color: var(--background); }
+.bg-border { background-color: var(--border); }
+.bg-primary\/5 { background-color: color-mix(in oklab, #ff5846 5%, transparent); }
+.text-primary { color: #ff5846; }
+
+.neon-red {
+  color: #ff3d45;
+  text-shadow: 0 0 12px rgba(255, 61, 69, 0.6), 0 0 28px rgba(255, 61, 69, 0.25);
+}
+
+.glass {
+  background: linear-gradient(135deg, rgba(13, 17, 33, 0.9), rgba(9, 11, 21, 0.74));
+  border: 1px solid rgba(255, 69, 80, 0.24);
+  backdrop-filter: blur(10px);
+}
+
+.btn-red {
+  border: 1px solid rgba(255, 70, 80, 0.35);
+  background: linear-gradient(90deg, #901826, #d62f3a);
+  color: #fff;
+  border-radius: 999px;
+  padding: 0.75rem 1.2rem;
+  font-weight: 600;
+}
+
+.grid-bg::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(rgba(255, 0, 55, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 0, 55, 0.05) 1px, transparent 1px);
+  background-size: 38px 38px;
+  mask-image: radial-gradient(circle at 50% 40%, black 30%, transparent 85%);
+  pointer-events: none;
+}
