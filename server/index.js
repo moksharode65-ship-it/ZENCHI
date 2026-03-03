@@ -16,6 +16,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-me"
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || ""
 const LIMIT_MS = 6 * 60 * 60 * 1000
 const GEO_RADIUS_KM = Number(process.env.GEO_RADIUS_KM || 10)
+const ADMIN_KEY = process.env.ADMIN_KEY || "zenchi-admin"
 
 const dataDir = path.resolve("data")
 if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true })
@@ -170,6 +171,19 @@ app.post("/session/stop", auth, (req, res) => {
   s.startedAt = null
   writeDb(db)
   res.json({ ok: true, remainingMs: s.remainingMs })
+})
+
+app.get("/admin/overview", (req, res) => {
+  const key = req.headers["x-admin-key"]
+  if (key !== ADMIN_KEY) return res.status(403).json({ error: "Forbidden" })
+
+  const db = readDb()
+  const users = db.users.length
+  const activeUsers = Object.values(db.sessions).filter((s) => s.active).length
+  const exhaustedUsers = Object.values(db.sessions).filter((s) => s.remainingMs <= 0).length
+  const recentLocks = [...db.geoLocks].slice(-10).reverse()
+
+  res.json({ users, activeUsers, exhaustedUsers, recentLocks, geoRadiusKm: GEO_RADIUS_KM })
 })
 
 app.listen(PORT, () => {
