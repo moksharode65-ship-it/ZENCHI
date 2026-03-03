@@ -61,7 +61,7 @@ export default function App() {
   const [clockNow, setClockNow] = useState(Date.now())
   const [geoLabel, setGeoLabel] = useState("location pending")
   const [message, setMessage] = useState("Log in with email and password, then start your session.")
-  const [globePreset, setGlobePreset] = useState<GlobePreset>("red")
+  const [globePreset, setGlobePreset] = useState<GlobePreset>("earth")
 
   const left = useMemo(() => {
     if (!session) return 0
@@ -325,6 +325,7 @@ export default function App() {
           <aside className="glass rounded-3xl p-5 md:p-7">
             <div className="relative mx-auto mb-4 h-52 w-full max-w-xs"><Globe className="-top-10" preset={globePreset} /></div>
             <div className="mb-4 flex gap-2">
+              <button className={`rounded-full px-3 py-1 text-xs ${globePreset === "earth" ? "btn-red" : "glass"}`} onClick={() => setGlobePreset("earth")}>Earth</button>
               <button className={`rounded-full px-3 py-1 text-xs ${globePreset === "red" ? "btn-red" : "glass"}`} onClick={() => setGlobePreset("red")}>Red</button>
               <button className={`rounded-full px-3 py-1 text-xs ${globePreset === "blue" ? "btn-red" : "glass"}`} onClick={() => setGlobePreset("blue")}>Blue</button>
               <button className={`rounded-full px-3 py-1 text-xs ${globePreset === "mixed" ? "btn-red" : "glass"}`} onClick={() => setGlobePreset("mixed")}>Mixed</button>
