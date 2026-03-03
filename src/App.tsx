@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react"
-import { Globe } from "@/components/ui/globe"
+import { useEffect, useMemo, useState } from "react"
+import { Globe, type GlobePreset } from "@/components/ui/globe"
 import { FireBall } from "@/components/ui/fire-ball"
 import { TextScramble } from "@/components/ui/text-scramble"
 import { GradientButton } from "@/components/ui/gradient-button"
@@ -8,9 +8,9 @@ import { WebGLShader } from "@/components/ui/web-gl-shader"
 import { Clock3, Earth, LogOut, ShieldCheck, Swords, Lock, Rocket } from "lucide-react"
 
 const API = "http://localhost:8787"
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || ""
 
 type MeResponse = {
+  email: string
   remainingMs: number
   totalUsedMs: number
   active: boolean
@@ -18,7 +18,13 @@ type MeResponse = {
   limitMs: number
 }
 
-type AuthView = "signin" | "login" | "logout" | "home"
+type AuthResponse = {
+  token: string
+  user?: { email: string }
+  upgraded?: boolean
+}
+
+type AuthView = "signup" | "login" | "logout" | "home"
 type Game = { id: string; title: string; genre: string; stars: string; status: "live" | "soon" }
 
 const GAMES: Game[] = [
@@ -45,16 +51,17 @@ function percent(remaining: number, limit: number) {
 }
 
 export default function App() {
-  const [authView, setAuthView] = useState<AuthView>(localStorage.getItem("zenchi_token") ? "home" : "signin")
+  const [authView, setAuthView] = useState<AuthView>(localStorage.getItem("zenchi_token") ? "home" : "login")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
   const [token, setToken] = useState(localStorage.getItem("zenchi_token") || "")
   const [session, setSession] = useState<MeResponse | null>(null)
   const [sessionSyncedAt, setSessionSyncedAt] = useState(Date.now())
   const [clockNow, setClockNow] = useState(Date.now())
   const [geoLabel, setGeoLabel] = useState("location pending")
-  const [message, setMessage] = useState("Sign in, then start session to begin your timer.")
-  const googleBtnRef = useRef<HTMLDivElement | null>(null)
+  const [message, setMessage] = useState("Log in with email and password, then start your session.")
+  const [globePreset, setGlobePreset] = useState<GlobePreset>("red")
 
   const left = useMemo(() => {
     if (!session) return 0
@@ -133,54 +140,34 @@ export default function App() {
   }, [token, session?.active])
 
   const authWithEmail = async () => {
-    if (!email.includes("@")) return setMessage("Enter a valid email.")
+    const authEmail = email.trim().toLowerCase()
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(authEmail)) return setMessage("Enter a valid email.")
     if (password.length < 6) return setMessage("Password should be at least 6 characters.")
+    if (authView === "signup" && password !== confirmPassword) return setMessage("Password and confirm password must match.")
 
     try {
       const endpoint = authView === "login" ? "/auth/login" : "/auth/signup"
-      const data = await api(endpoint, "POST", { email, password })
+      const data = (await api(endpoint, "POST", { email: authEmail, password })) as AuthResponse
+      const accountEmail = data.user?.email || authEmail
       localStorage.setItem("zenchi_token", data.token)
       setToken(data.token)
+      setEmail(accountEmail)
       setAuthView("home")
-      setMessage(authView === "login" ? "Logged in successfully." : "Account created and signed in.")
+      setMessage(
+        authView === "login"
+          ? `Logged in as ${accountEmail}.`
+          : data.upgraded
+            ? `Password set for existing account. Logged in as ${accountEmail}.`
+            : `Account created and signed in as ${accountEmail}.`,
+      )
       setPassword("")
+      setConfirmPassword("")
     } catch (e) {
-      setMessage(e instanceof Error ? e.message : "Authentication failed")
+      const authError = e instanceof Error ? e.message : "Authentication failed"
+      if (authError.includes("No password set")) setAuthView("signup")
+      setMessage(authError)
     }
   }
-
-  useEffect(() => {
-    const addScript = () => {
-      if (document.getElementById("google-identity")) return
-      const s = document.createElement("script")
-      s.src = "https://accounts.google.com/gsi/client"
-      s.async = true
-      s.defer = true
-      s.id = "google-identity"
-      s.onload = () => {
-        const g = (window as any).google
-        if (!g || !googleBtnRef.current || !GOOGLE_CLIENT_ID) return
-        g.accounts.id.initialize({
-          client_id: GOOGLE_CLIENT_ID,
-          callback: async (resp: { credential: string }) => {
-            try {
-              const data = await api("/auth/google", "POST", { idToken: resp.credential })
-              localStorage.setItem("zenchi_token", data.token)
-              setToken(data.token)
-              setAuthView("home")
-              setMessage("Google sign in successful.")
-            } catch (e) {
-              setMessage(e instanceof Error ? e.message : "Google sign in failed")
-            }
-          },
-        })
-        g.accounts.id.renderButton(googleBtnRef.current, { theme: "filled_black", size: "large", text: "signin_with" })
-        g.accounts.id.prompt()
-      }
-      document.body.appendChild(s)
-    }
-    addScript()
-  }, [GOOGLE_CLIENT_ID])
 
   const startSession = () => {
     navigator.geolocation.getCurrentPosition(
@@ -218,11 +205,14 @@ export default function App() {
     localStorage.removeItem("zenchi_token")
     setToken("")
     setSession(null)
-    setAuthView("signin")
+    setEmail("")
+    setPassword("")
+    setConfirmPassword("")
+    setAuthView("login")
     setMessage("Logged out.")
   }
 
-  if (authView === "signin" || authView === "login" || authView === "logout") {
+  if (authView === "signup" || authView === "login" || authView === "logout") {
     return (
       <main className="relative min-h-screen overflow-hidden">
         <WebGLShader />
@@ -232,7 +222,7 @@ export default function App() {
           <div className="glass grid w-full max-w-4xl gap-6 rounded-3xl p-6 md:grid-cols-[1.1fr_1fr] md:p-8">
             <div className="space-y-5">
               <TextScramble text="ZENCHI ACCESS" className="neon-red" />
-              <h1 className="text-4xl font-black md:text-5xl">{authView === "logout" ? "Logout" : authView === "login" ? "Login" : "Sign In"}</h1>
+              <h1 className="text-4xl font-black md:text-5xl">{authView === "logout" ? "Logout" : authView === "login" ? "Login" : "Sign Up"}</h1>
               <p className="text-sm text-muted-foreground">Red-space arcade gate. Secure auth + 6-hour session lock + geo protection.</p>
               <img
                 src="https://images.unsplash.com/photo-1462331940025-496dfbfc7564?auto=format&fit=crop&w=1600&q=80"
@@ -256,6 +246,9 @@ export default function App() {
                     placeholder="player@gmail.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") authWithEmail()
+                    }}
                   />
                   <label className="mt-3 block text-xs text-muted-foreground">Password</label>
                   <input
@@ -264,11 +257,30 @@ export default function App() {
                     placeholder="Enter password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") authWithEmail()
+                    }}
                   />
+                  {authView === "signup" ? (
+                    <>
+                      <label className="mt-3 block text-xs text-muted-foreground">Confirm Password</label>
+                      <input
+                        type="password"
+                        className="mt-2 w-full rounded-xl border border-[#2f375f] bg-[#090d1a] px-4 py-3 text-sm text-white"
+                        placeholder="Re-enter password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") authWithEmail()
+                        }}
+                      />
+                    </>
+                  ) : null}
                   <div className="mt-4 flex flex-col gap-3">
-                    <GradientButton onClick={authWithEmail}>{authView === "login" ? "Login with Password" : "Sign Up with Password"}</GradientButton>
-                    <GradientButton variant="variant" onClick={() => setAuthView(authView === "signin" ? "login" : "signin")}>{authView === "signin" ? "Already have account? Login" : "New here? Sign In"}</GradientButton>
-                    <div ref={googleBtnRef} className="pt-2" />
+                    <GradientButton onClick={authWithEmail}>{authView === "login" ? "Login with Password" : "Create Account"}</GradientButton>
+                    <GradientButton variant="variant" onClick={() => setAuthView(authView === "login" ? "signup" : "login")}>
+                      {authView === "login" ? "New user? Sign Up" : "Already registered? Login"}
+                    </GradientButton>
                   </div>
                 </>
               )}
@@ -311,11 +323,17 @@ export default function App() {
           </div>
 
           <aside className="glass rounded-3xl p-5 md:p-7">
-            <div className="relative mx-auto mb-4 h-52 w-full max-w-xs"><Globe className="-top-10" /></div>
+            <div className="relative mx-auto mb-4 h-52 w-full max-w-xs"><Globe className="-top-10" preset={globePreset} /></div>
+            <div className="mb-4 flex gap-2">
+              <button className={`rounded-full px-3 py-1 text-xs ${globePreset === "red" ? "btn-red" : "glass"}`} onClick={() => setGlobePreset("red")}>Red</button>
+              <button className={`rounded-full px-3 py-1 text-xs ${globePreset === "blue" ? "btn-red" : "glass"}`} onClick={() => setGlobePreset("blue")}>Blue</button>
+              <button className={`rounded-full px-3 py-1 text-xs ${globePreset === "mixed" ? "btn-red" : "glass"}`} onClick={() => setGlobePreset("mixed")}>Mixed</button>
+            </div>
             <div className="mt-5 space-y-3 text-sm">
               <p className="flex items-center gap-2"><Clock3 size={15} className="text-primary" /> Time left: {fmt(left)}</p>
               <p className="flex items-center gap-2"><Earth size={15} className="text-primary" /> {geoLabel}</p>
-              <p className="flex items-center gap-2"><ShieldCheck size={15} className="text-primary" /> {message}</p>
+              <p className="flex items-center gap-2"><ShieldCheck size={15} className="text-primary" /> Logged in as: {session?.email || email}</p>
+              <p className="flex items-center gap-2"><Rocket size={15} className="text-primary" /> {message}</p>
               <p className="flex items-center gap-2"><Swords size={15} className="text-primary" /> Game launch: {playDisabled ? "Locked" : "Ready"}</p>
             </div>
           </aside>

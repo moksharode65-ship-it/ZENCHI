@@ -1,10 +1,12 @@
 "use client"
 
 import createGlobe, { type COBEOptions } from "cobe"
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { cn } from "@/lib/utils"
 
-const GLOBE_CONFIG: COBEOptions = {
+export type GlobePreset = "red" | "blue" | "mixed"
+
+const BASE_CONFIG: COBEOptions = {
   width: 800,
   height: 800,
   onRender: () => {},
@@ -32,13 +34,47 @@ const GLOBE_CONFIG: COBEOptions = {
   ],
 }
 
-export function Globe({ className, config = GLOBE_CONFIG }: { className?: string; config?: COBEOptions }) {
+const PRESET_COLORS: Record<GlobePreset, Pick<COBEOptions, "baseColor" | "markerColor" | "glowColor">> = {
+  red: {
+    baseColor: [28 / 255, 7 / 255, 16 / 255],
+    markerColor: [1, 70 / 255, 90 / 255],
+    glowColor: [120 / 255, 28 / 255, 44 / 255],
+  },
+  blue: {
+    baseColor: [8 / 255, 20 / 255, 42 / 255],
+    markerColor: [80 / 255, 170 / 255, 1],
+    glowColor: [30 / 255, 70 / 255, 150 / 255],
+  },
+  mixed: {
+    baseColor: [17 / 255, 10 / 255, 30 / 255],
+    markerColor: [1, 105 / 255, 140 / 255],
+    glowColor: [105 / 255, 40 / 255, 110 / 255],
+  },
+}
+
+export function Globe({
+  className,
+  preset = "red",
+  config,
+}: {
+  className?: string
+  preset?: GlobePreset
+  config?: COBEOptions
+}) {
   let phi = 0
   let width = 0
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const pointerInteracting = useRef<number | null>(null)
   const pointerInteractionMovement = useRef(0)
   const [r, setR] = useState(0)
+
+  const mergedConfig = useMemo<COBEOptions>(() => {
+    return {
+      ...BASE_CONFIG,
+      ...PRESET_COLORS[preset],
+      ...(config || {}),
+    }
+  }, [preset, config])
 
   const updatePointerInteraction = (value: number | null) => {
     pointerInteracting.current = value
@@ -72,7 +108,7 @@ export function Globe({ className, config = GLOBE_CONFIG }: { className?: string
     onResize()
 
     const globe = createGlobe(canvasRef.current!, {
-      ...config,
+      ...mergedConfig,
       width: width * 2,
       height: width * 2,
       onRender,
@@ -86,7 +122,7 @@ export function Globe({ className, config = GLOBE_CONFIG }: { className?: string
       globe.destroy()
       window.removeEventListener("resize", onResize)
     }
-  }, [config, onRender])
+  }, [mergedConfig, onRender])
 
   return (
     <div className={cn("absolute inset-0 mx-auto aspect-[1/1] w-full max-w-[600px]", className)}>
