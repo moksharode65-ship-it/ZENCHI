@@ -6,6 +6,7 @@ import { Clock3, Earth, LogIn, LogOut, ShieldCheck, Swords, Lock, Rocket, Gauge,
 
 const API = "http://localhost:8787"
 const ADMIN_KEY = "zenchi-admin"
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || ""
 
 type MeResponse = {
   remainingMs: number
@@ -124,9 +125,9 @@ export default function App() {
       s.id = "google-identity"
       s.onload = () => {
         const g = (window as any).google
-        if (!g || !googleBtnRef.current) return
+        if (!g || !googleBtnRef.current || !GOOGLE_CLIENT_ID) return
         g.accounts.id.initialize({
-          client_id: "",
+          client_id: GOOGLE_CLIENT_ID,
           callback: async (resp: { credential: string }) => {
             try {
               const data = await api("/auth/google", "POST", { idToken: resp.credential })
