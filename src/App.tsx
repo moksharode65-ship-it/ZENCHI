@@ -5,7 +5,11 @@ import { TextScramble } from "@/components/ui/text-scramble"
 import { GradientButton } from "@/components/ui/gradient-button"
 import { LiquidButton } from "@/components/ui/liquid-glass-button"
 import { WebGLShader } from "@/components/ui/web-gl-shader"
-import { Clock3, LogOut, ShieldCheck, Swords, Lock, Rocket, ArrowLeft } from "lucide-react"
+import { Clock3, LogOut, ShieldCheck, Swords, Lock, Rocket, ArrowLeft, Sparkles, Gamepad2, Layers3 } from "lucide-react"
+import { VideoScrollHero } from "@/components/ui/video-scroll-hero"
+import { ZoomParallax } from "@/components/ui/zoom-parallax"
+import { ContainerScroll } from "@/components/ui/container-scroll-animation"
+import { ParallaxComponent } from "@/components/ui/parallax-scrolling"
 
 const API = (import.meta.env.VITE_API_URL as string) || "http://localhost:8787"
 const GOOGLE_CLIENT_ID = (import.meta.env.VITE_GOOGLE_CLIENT_ID as string) || ""
@@ -80,6 +84,37 @@ const GAMES: Game[] = [
 
 const FIRE_COLORS_AUTH = ["#ff233b", "#8a2be2", "#f44336"]
 const FIRE_COLORS_HOME = ["#ff233b", "#1161ff", "#8a2be2"]
+
+const ZOOM_SHOWCASE_IMAGES = [
+  {
+    src: "https://images.unsplash.com/photo-1511512578047-dfb367046420?w=1280&h=720&fit=crop&crop=entropy&auto=format&q=80",
+    alt: "Neon arcade interior",
+  },
+  {
+    src: "https://images.unsplash.com/photo-1511882150382-421056c89033?w=1280&h=720&fit=crop&crop=entropy&auto=format&q=80",
+    alt: "Gaming controller closeup",
+  },
+  {
+    src: "https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=800&h=800&fit=crop&crop=entropy&auto=format&q=80",
+    alt: "Retro game machine",
+  },
+  {
+    src: "https://images.unsplash.com/photo-1493711662062-fa541adb3fc8?w=1280&h=720&fit=crop&crop=entropy&auto=format&q=80",
+    alt: "RGB keyboard setup",
+  },
+  {
+    src: "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=800&h=800&fit=crop&crop=entropy&auto=format&q=80",
+    alt: "Esports team stage",
+  },
+  {
+    src: "https://images.unsplash.com/photo-1560253023-3ec5d502959f?w=1280&h=720&fit=crop&crop=entropy&auto=format&q=80",
+    alt: "Cyberpunk alley lights",
+  },
+  {
+    src: "https://images.unsplash.com/photo-1518770660439-4636190af475?w=1280&h=720&fit=crop&crop=entropy&auto=format&q=80",
+    alt: "Gaming hardware",
+  },
+]
 
 function fmt(ms: number) {
   const total = Math.max(0, Math.floor(ms / 1000))
@@ -487,6 +522,56 @@ export default function App() {
               )
             })}
           </div>
+
+          {gamePage === "home" ? (
+            <div className="mt-12 space-y-8">
+              <div className="glass rounded-3xl p-6 md:p-8">
+                <div className="mb-6 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                  <span className="inline-flex items-center gap-2 rounded-full border border-[#2f3b62] bg-[#0a1124] px-3 py-1">
+                    <Sparkles size={14} className="text-primary" /> Featured Motion Stack
+                  </span>
+                  <span className="inline-flex items-center gap-2 rounded-full border border-[#2f3b62] bg-[#0a1124] px-3 py-1">
+                    <Gamepad2 size={14} className="text-primary" /> All Games Experience
+                  </span>
+                  <span className="inline-flex items-center gap-2 rounded-full border border-[#2f3b62] bg-[#0a1124] px-3 py-1">
+                    <Layers3 size={14} className="text-primary" /> Theme-matched
+                  </span>
+                </div>
+                <VideoScrollHero
+                  startScale={0.42}
+                  videoSrc="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"
+                />
+              </div>
+
+              <div className="glass rounded-3xl p-4 md:p-8">
+                <ContainerScroll
+                  titleComponent={
+                    <>
+                      <h2 className="text-3xl font-semibold text-white md:text-5xl">
+                        Unlock the <span className="neon-red">ZENCHI Vault</span>
+                      </h2>
+                      <p className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground md:text-base">
+                        Every scroll reveals another layer of gameplay — from quick arcade bursts to deep challenge modes.
+                      </p>
+                    </>
+                  }
+                >
+                  <img
+                    src="https://images.unsplash.com/photo-1509198397868-475647b2a1e5?q=80&w=1600&auto=format&fit=crop"
+                    alt="Neon arcade hall"
+                    className="mx-auto h-full w-full rounded-2xl object-cover object-center"
+                    draggable={false}
+                  />
+                </ContainerScroll>
+              </div>
+
+              <div className="glass rounded-3xl p-4 md:p-8">
+                <ZoomParallax images={ZOOM_SHOWCASE_IMAGES} />
+              </div>
+
+              <ParallaxComponent />
+            </div>
+          ) : null}
         </section>
       </section>
     </main>
