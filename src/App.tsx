@@ -4,20 +4,14 @@ import { FireBall } from "@/components/ui/fire-ball"
 import { TextScramble } from "@/components/ui/text-scramble"
 import { Clock3, Earth, LogIn, LogOut, ShieldCheck, Swords } from "lucide-react"
 
-type SessionState = {
-  email: string
+const API = "http://localhost:8787"
+
+type MeResponse = {
+  remainingMs: number
+  totalUsedMs: number
+  active: boolean
   startedAt: number | null
-  usedMs: number
-  geoCell: string
-}
-
-const LIMIT_MS = 6 * 60 * 60 * 1000
-
-function kmBucket(lat: number, lng: number) {
-  const step = 0.09
-  const a = Math.round(lat / step) * step
-  const b = Math.round(lng / step) * step
-  return `${a.toFixed(2)}:${b.toFixed(2)}`
+  limitMs: number
 }
 
 function fmt(ms: number) {
@@ -30,87 +24,94 @@ function fmt(ms: number) {
 
 export default function App() {
   const [email, setEmail] = useState("")
-  const [session, setSession] = useState<SessionState | null>(null)
-  const [now, setNow] = useState(Date.now())
+  const [token, setToken] = useState(localStorage.getItem("zenchi_token") || "")
+  const [session, setSession] = useState<MeResponse | null>(null)
   const [geoLabel, setGeoLabel] = useState("location pending")
-  const [message, setMessage] = useState("Login starts your 6-hour timer.")
+  const [message, setMessage] = useState("Login and start session to begin timer.")
 
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 1000)
-    return () => clearInterval(id)
-  }, [])
+  const left = useMemo(() => session?.remainingMs ?? 0, [session])
 
-  useEffect(() => {
-    const raw = localStorage.getItem("zenchi_session")
-    if (raw) setSession(JSON.parse(raw))
-  }, [])
-
-  useEffect(() => {
-    if (session) localStorage.setItem("zenchi_session", JSON.stringify(session))
-  }, [session])
-
-  const activeUsed = useMemo(() => {
-    if (!session) return 0
-    const live = session.startedAt ? now - session.startedAt : 0
-    return session.usedMs + live
-  }, [session, now])
-
-  const left = LIMIT_MS - activeUsed
-
-  const startLogin = () => {
-    if (!email.includes("@")) return setMessage("Enter a valid email first.")
-
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const cell = kmBucket(pos.coords.latitude, pos.coords.longitude)
-        setGeoLabel(`${pos.coords.latitude.toFixed(3)}, ${pos.coords.longitude.toFixed(3)} (10km cell ${cell})`)
-
-        const db = JSON.parse(localStorage.getItem("zenchi_geo_lock") || "{}") as Record<string, string>
-        if (db[cell] && db[cell] !== email.toLowerCase()) {
-          setMessage("Another account already used in your geo range. Access blocked.")
-          return
-        }
-
-        db[cell] = email.toLowerCase()
-        localStorage.setItem("zenchi_geo_lock", JSON.stringify(db))
-
-        const prev = session?.email === email.toLowerCase() ? session : null
-        const usedMs = prev?.usedMs || 0
-        if (usedMs >= LIMIT_MS) {
-          setMessage("6-hour limit already exhausted for this account.")
-          return
-        }
-
-        setSession({
-          email: email.toLowerCase(),
-          startedAt: Date.now(),
-          usedMs,
-          geoCell: cell,
-        })
-        setMessage("Session started. Timer is running.")
+  const api = async (path: string, method = "GET", body?: unknown) => {
+    const res = await fetch(`${API}${path}`, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      () => setMessage("Location required for anti-multi-account lock."),
+      body: body ? JSON.stringify(body) : undefined,
+    })
+
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(data?.error || "Request failed")
+    return data
+  }
+
+  const refreshSession = async () => {
+    if (!token) return
+    try {
+      const me = (await api("/session/me")) as MeResponse
+      setSession(me)
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : "Failed to refresh session")
+    }
+  }
+
+  useEffect(() => {
+    if (!token) return
+    refreshSession()
+    const id = setInterval(refreshSession, 1000)
+    return () => clearInterval(id)
+  }, [token])
+
+  const login = async () => {
+    if (!email.includes("@")) return setMessage("Enter a valid email.")
+    try {
+      const data = await api("/auth/google", "POST", { email })
+      localStorage.setItem("zenchi_token", data.token)
+      setToken(data.token)
+      setMessage("Authenticated. Now start session.")
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : "Login failed")
+    }
+  }
+
+  const startSession = () => {
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        setGeoLabel(`${pos.coords.latitude.toFixed(3)}, ${pos.coords.longitude.toFixed(3)}`)
+        try {
+          await api("/session/start", "POST", { lat: pos.coords.latitude, lng: pos.coords.longitude })
+          await refreshSession()
+          setMessage("Session started. Timer is running.")
+        } catch (e) {
+          setMessage(e instanceof Error ? e.message : "Could not start session")
+        }
+      },
+      () => setMessage("Location permission is required."),
       { enableHighAccuracy: false, timeout: 10000 },
     )
   }
 
-  const logout = () => {
-    if (!session) return
-    const live = session.startedAt ? Date.now() - session.startedAt : 0
-    setSession({ ...session, usedMs: session.usedMs + live, startedAt: null })
-    setMessage("Logged out. Timer paused.")
+  const stopSession = async () => {
+    try {
+      await api("/session/stop", "POST")
+      await refreshSession()
+      setMessage("Session paused.")
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : "Could not stop session")
+    }
   }
 
-  const playDisabled = !session || left <= 0 || !session.startedAt
+  const playDisabled = !session?.active || (session?.remainingMs ?? 0) <= 0
 
   return (
-    <main className="relative min-h-screen overflow-hidden grid-bg">
+    <main className="grid-bg relative min-h-screen overflow-hidden">
       <FireBall fullScreen particleCount={28} ballColor="#ff1f35" colors={["#ff233b", "#1161ff", "#8a2be2"]} />
 
       <section className="relative z-10 mx-auto flex min-h-screen max-w-6xl flex-col px-6 py-10">
         <header className="flex items-center justify-between">
           <TextScramble text="ZENCHI ARCADE" className="neon-red" />
-          <div className="glass rounded-full px-4 py-2 text-xs text-muted-foreground">Beta • Space Build</div>
+          <div className="glass rounded-full px-4 py-2 text-xs text-muted-foreground">Beta • Secure Session Mode</div>
         </header>
 
         <div className="mt-10 grid gap-6 lg:grid-cols-[1.3fr_1fr]">
@@ -126,15 +127,20 @@ export default function App() {
                 Cosmic play. <span className="neon-red">Strict timer.</span>
               </h1>
               <p className="mt-4 max-w-lg text-sm text-muted-foreground">
-                Each player gets 6 hours total. Login starts timer. Logout pauses it. Geo-cell lock (~10km) limits
-                multi-account switching on same location range.
+                Proper backend timer (6h), geo lock by distance (10km), auth token sessions. This now runs with API
+                enforcement instead of browser-only storage.
               </p>
               <div className="mt-8 flex flex-wrap items-center gap-3">
-                <button className="btn-red inline-flex items-center gap-2" onClick={startLogin}>
+                <button className="btn-red inline-flex items-center gap-2" onClick={login}>
+                  <LogIn size={16} /> Authenticate
+                </button>
+                <button className="btn-red inline-flex items-center gap-2" onClick={startSession}>
                   <LogIn size={16} /> Start Session
                 </button>
-                <button className="glass rounded-full px-5 py-3 text-sm" onClick={logout}>
-                  <span className="inline-flex items-center gap-2"><LogOut size={15} /> Pause / Logout</span>
+                <button className="glass rounded-full px-5 py-3 text-sm" onClick={stopSession}>
+                  <span className="inline-flex items-center gap-2">
+                    <LogOut size={15} /> Pause / Logout
+                  </span>
                 </button>
               </div>
             </div>
@@ -142,9 +148,9 @@ export default function App() {
 
           <aside className="glass rounded-3xl p-5 md:p-7">
             <div className="relative mx-auto mb-6 h-56 w-full max-w-xs">
-              <Globe className="top-0" />
+              <Globe className="-top-8" />
             </div>
-            <label className="text-xs text-muted-foreground">Login email (placeholder for Google OAuth)</label>
+            <label className="text-xs text-muted-foreground">Google email (dev auth until Google button is wired)</label>
             <input
               className="mt-2 w-full rounded-xl border border-[#2f375f] bg-[#090d1a] px-4 py-3 text-sm text-white"
               placeholder="player@gmail.com"
@@ -153,10 +159,18 @@ export default function App() {
             />
 
             <div className="mt-5 space-y-3 text-sm">
-              <p className="flex items-center gap-2"><Clock3 size={15} className="text-primary" /> Time left: {fmt(left)}</p>
-              <p className="flex items-center gap-2"><Earth size={15} className="text-primary" /> {geoLabel}</p>
-              <p className="flex items-center gap-2"><ShieldCheck size={15} className="text-primary" /> {message}</p>
-              <p className="flex items-center gap-2"><Swords size={15} className="text-primary" /> Game launch: {playDisabled ? "Locked" : "Ready"}</p>
+              <p className="flex items-center gap-2">
+                <Clock3 size={15} className="text-primary" /> Time left: {fmt(left)}
+              </p>
+              <p className="flex items-center gap-2">
+                <Earth size={15} className="text-primary" /> {geoLabel}
+              </p>
+              <p className="flex items-center gap-2">
+                <ShieldCheck size={15} className="text-primary" /> {message}
+              </p>
+              <p className="flex items-center gap-2">
+                <Swords size={15} className="text-primary" /> Game launch: {playDisabled ? "Locked" : "Ready"}
+              </p>
             </div>
           </aside>
         </div>
