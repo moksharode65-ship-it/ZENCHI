@@ -5,6 +5,12 @@
       "email": "mok@gmail.com",
       "googleSub": null,
       "createdAt": 1772525037226
+    },
+    {
+      "id": 1772525699111,
+      "email": "yo@gmail.com",
+      "googleSub": null,
+      "createdAt": 1772525699111
     }
   ],
   "sessions": {
@@ -15,6 +21,14 @@
       "startedAt": null,
       "lastLat": 19.182053286610095,
       "lastLng": 72.83794160855203
+    },
+    "1772525699111": {
+      "remainingMs": 21600000,
+      "totalUsedMs": 0,
+      "active": false,
+      "startedAt": null,
+      "lastLat": null,
+      "lastLng": null
     }
   },
   "geoLocks": [

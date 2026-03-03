@@ -2,10 +2,12 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { Globe } from "@/components/ui/globe"
 import { FireBall } from "@/components/ui/fire-ball"
 import { TextScramble } from "@/components/ui/text-scramble"
-import { Clock3, Earth, LogIn, LogOut, ShieldCheck, Swords, Lock, Rocket, Gauge, Users, ArrowLeft } from "lucide-react"
+import { GradientButton } from "@/components/ui/gradient-button"
+import { LiquidButton } from "@/components/ui/liquid-glass-button"
+import { WebGLShader } from "@/components/ui/web-gl-shader"
+import { Clock3, Earth, LogOut, ShieldCheck, Swords, Lock, Rocket } from "lucide-react"
 
 const API = "http://localhost:8787"
-const ADMIN_KEY = "zenchi-admin"
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || ""
 
 type MeResponse = {
@@ -16,21 +18,13 @@ type MeResponse = {
   limitMs: number
 }
 
-type AdminOverview = {
-  users: number
-  activeUsers: number
-  exhaustedUsers: number
-  recentLocks: { id: number; email: string; lat: number; lng: number; createdAt: number }[]
-  geoRadiusKm: number
-}
-
-type ViewMode = "arcade" | "admin" | "game"
+type AuthView = "signin" | "login" | "logout" | "home"
 type Game = { id: string; title: string; genre: string; stars: string; status: "live" | "soon" }
 
 const GAMES: Game[] = [
   { id: "nebula-run", title: "Nebula Run", genre: "Arcade", stars: "★★★★☆", status: "live" },
   { id: "quantum-drift", title: "Quantum Drift", genre: "Racer", stars: "★★★★★", status: "soon" },
-  { id: "void-strike", title: "Void Strike", genre: "Action", stars: "★★★★☆", status: "soon" },
+  { id: "void-strike", title: "Action", genre: "Shooter", stars: "★★★★☆", status: "soon" },
   { id: "orbit-ops", title: "Orbit Ops", genre: "Puzzle", stars: "★★★☆☆", status: "live" },
 ]
 
@@ -48,16 +42,14 @@ function percent(remaining: number, limit: number) {
 }
 
 export default function App() {
-  const [view, setView] = useState<ViewMode>("arcade")
-  const [activeGame, setActiveGame] = useState<Game | null>(null)
+  const [authView, setAuthView] = useState<AuthView>(localStorage.getItem("zenchi_token") ? "home" : "signin")
   const [email, setEmail] = useState("")
   const [token, setToken] = useState(localStorage.getItem("zenchi_token") || "")
   const [session, setSession] = useState<MeResponse | null>(null)
   const [sessionSyncedAt, setSessionSyncedAt] = useState(Date.now())
   const [clockNow, setClockNow] = useState(Date.now())
   const [geoLabel, setGeoLabel] = useState("location pending")
-  const [message, setMessage] = useState("Login and start session to begin timer.")
-  const [adminData, setAdminData] = useState<AdminOverview | null>(null)
+  const [message, setMessage] = useState("Sign in, then start session to begin your timer.")
   const googleBtnRef = useRef<HTMLDivElement | null>(null)
 
   const left = useMemo(() => {
@@ -65,19 +57,20 @@ export default function App() {
     if (!session.active) return session.remainingMs
     return Math.max(0, session.remainingMs - (clockNow - sessionSyncedAt))
   }, [session, clockNow, sessionSyncedAt])
+
   const playDisabled = !session?.active || left <= 0
 
-  const api = async (path: string, method = "GET", body?: unknown, extraHeaders?: Record<string, string>, keepalive?: boolean) => {
+  const api = async (path: string, method = "GET", body?: unknown, keepalive?: boolean) => {
     const res = await fetch(`${API}${path}`, {
       method,
       headers: {
         "Content-Type": "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...(extraHeaders || {}),
       },
       body: body ? JSON.stringify(body) : undefined,
       keepalive,
     })
+
     const data = await res.json().catch(() => ({}))
     if (!res.ok) throw new Error(data?.error || "Request failed")
     return data
@@ -94,15 +87,6 @@ export default function App() {
     }
   }
 
-  const loadAdmin = async () => {
-    try {
-      const data = (await api("/admin/overview", "GET", undefined, { "x-admin-key": ADMIN_KEY })) as AdminOverview
-      setAdminData(data)
-    } catch {
-      setAdminData(null)
-    }
-  }
-
   useEffect(() => {
     const id = setInterval(() => setClockNow(Date.now()), 1000)
     return () => clearInterval(id)
@@ -111,13 +95,7 @@ export default function App() {
   useEffect(() => {
     if (!token) return
     refreshSession()
-    loadAdmin()
-
-    const uiPoll = setInterval(() => {
-      refreshSession()
-      if (view === "admin") loadAdmin()
-    }, 1500)
-
+    const uiPoll = setInterval(refreshSession, 2000)
     const heartbeat = setInterval(() => {
       if (session?.active) api("/session/heartbeat", "POST").catch(() => null)
     }, 15000)
@@ -126,7 +104,7 @@ export default function App() {
       clearInterval(uiPoll)
       clearInterval(heartbeat)
     }
-  }, [token, view, session?.active])
+  }, [token, session?.active])
 
   useEffect(() => {
     const emergencyPause = () => {
@@ -150,15 +128,16 @@ export default function App() {
     }
   }, [token, session?.active])
 
-  const login = async () => {
+  const authWithEmail = async () => {
     if (!email.includes("@")) return setMessage("Enter a valid email.")
     try {
       const data = await api("/auth/google", "POST", { email })
       localStorage.setItem("zenchi_token", data.token)
       setToken(data.token)
-      setMessage("Authenticated. Now start session.")
+      setAuthView("home")
+      setMessage("Signed in. You can start session now.")
     } catch (e) {
-      setMessage(e instanceof Error ? e.message : "Login failed")
+      setMessage(e instanceof Error ? e.message : "Authentication failed")
     }
   }
 
@@ -180,18 +159,19 @@ export default function App() {
               const data = await api("/auth/google", "POST", { idToken: resp.credential })
               localStorage.setItem("zenchi_token", data.token)
               setToken(data.token)
-              setMessage("Google login success.")
+              setAuthView("home")
+              setMessage("Google sign in successful.")
             } catch (e) {
-              setMessage(e instanceof Error ? e.message : "Google login failed")
+              setMessage(e instanceof Error ? e.message : "Google sign in failed")
             }
           },
         })
-        g.accounts.id.renderButton(googleBtnRef.current, { theme: "filled_black", size: "medium", text: "signin_with" })
+        g.accounts.id.renderButton(googleBtnRef.current, { theme: "filled_black", size: "large", text: "signin_with" })
       }
       document.body.appendChild(s)
     }
     addScript()
-  }, [])
+  }, [GOOGLE_CLIENT_ID])
 
   const startSession = () => {
     navigator.geolocation.getCurrentPosition(
@@ -200,7 +180,7 @@ export default function App() {
         try {
           await api("/session/start", "POST", { lat: pos.coords.latitude, lng: pos.coords.longitude })
           await refreshSession()
-          setMessage("Session started. Timer is running.")
+          setMessage("Session started. Timer running.")
         } catch (e) {
           setMessage(e instanceof Error ? e.message : "Could not start session")
         }
@@ -220,27 +200,62 @@ export default function App() {
     }
   }
 
-  const launchGame = (g: Game) => {
-    if (playDisabled || g.status !== "live") return
-    setActiveGame(g)
-    setView("game")
+  const signOut = async () => {
+    try {
+      await api("/session/stop", "POST")
+    } catch {
+      // ignore
+    }
+    localStorage.removeItem("zenchi_token")
+    setToken("")
+    setSession(null)
+    setAuthView("signin")
+    setMessage("Logged out.")
   }
 
-  if (view === "game" && activeGame) {
+  if (authView === "signin" || authView === "login" || authView === "logout") {
     return (
       <main className="relative min-h-screen overflow-hidden">
-        <FireBall fullScreen particleCount={18} ballColor="#ff1f35" colors={["#ff233b", "#1161ff", "#8a2be2"]} />
-        <section className="relative z-10 mx-auto flex min-h-screen max-w-4xl flex-col px-6 py-10">
-          <button className="glass mb-6 inline-flex w-fit items-center gap-2 rounded-full px-4 py-2" onClick={() => setView("arcade")}>
-            <ArrowLeft size={14} /> Back to Arcade
-          </button>
-          <div className="glass rounded-3xl p-8">
-            <p className="text-xs text-muted-foreground">Now Launching</p>
-            <h1 className="mt-2 text-4xl font-black">{activeGame.title}</h1>
-            <p className="mt-2 text-muted-foreground">Genre: {activeGame.genre}</p>
-            <p className="mt-2 text-muted-foreground">Remaining play time: {fmt(left)}</p>
-            <div className="mt-6 rounded-2xl border border-[#2b335c] bg-[#080b18] p-6 text-sm text-muted-foreground">
-              Game runtime shell ready. We can now mount your real game bundle here.
+        <WebGLShader />
+        <FireBall fullScreen particleCount={24} ballColor="#ff1f35" colors={["#ff233b", "#8a2be2", "#f44336"]} />
+
+        <section className="relative z-20 mx-auto flex min-h-screen max-w-5xl items-center justify-center px-6 py-10">
+          <div className="glass grid w-full max-w-4xl gap-6 rounded-3xl p-6 md:grid-cols-[1.1fr_1fr] md:p-8">
+            <div className="space-y-5">
+              <TextScramble text="ZENCHI ACCESS" className="neon-red" />
+              <h1 className="text-4xl font-black md:text-5xl">{authView === "logout" ? "Logout" : authView === "login" ? "Login" : "Sign In"}</h1>
+              <p className="text-sm text-muted-foreground">Red-space arcade gate. Secure auth + 6-hour session lock + geo protection.</p>
+              <img
+                src="https://images.unsplash.com/photo-1462331940025-496dfbfc7564?auto=format&fit=crop&w=1600&q=80"
+                alt="space"
+                className="h-44 w-full rounded-2xl object-cover opacity-80"
+              />
+            </div>
+
+            <div className="glass rounded-2xl p-5">
+              {authView === "logout" ? (
+                <div className="space-y-4">
+                  <p className="text-sm text-muted-foreground">Confirm logout from ZENCHI.</p>
+                  <GradientButton className="w-full" onClick={signOut}>Confirm Logout</GradientButton>
+                  <LiquidButton variant="outline" className="w-full" onClick={() => setAuthView("home")}>Cancel</LiquidButton>
+                </div>
+              ) : (
+                <>
+                  <label className="text-xs text-muted-foreground">Email</label>
+                  <input
+                    className="mt-2 w-full rounded-xl border border-[#2f375f] bg-[#090d1a] px-4 py-3 text-sm text-white"
+                    placeholder="player@gmail.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
+                  <div className="mt-4 flex flex-col gap-3">
+                    <GradientButton onClick={authWithEmail}>{authView === "login" ? "Login" : "Create account / Sign in"}</GradientButton>
+                    <GradientButton variant="variant" onClick={() => setAuthView(authView === "signin" ? "login" : "signin")}>{authView === "signin" ? "Go to Login" : "Go to Sign In"}</GradientButton>
+                    <div ref={googleBtnRef} className="pt-2" />
+                  </div>
+                </>
+              )}
+              <p className="mt-4 text-xs text-muted-foreground">{message}</p>
             </div>
           </div>
         </section>
@@ -250,15 +265,15 @@ export default function App() {
 
   return (
     <main className="grid-bg relative min-h-screen overflow-hidden">
+      <WebGLShader />
       <FireBall fullScreen particleCount={28} ballColor="#ff1f35" colors={["#ff233b", "#1161ff", "#8a2be2"]} />
 
-      <section className="relative z-10 mx-auto flex min-h-screen max-w-6xl flex-col px-6 py-10">
+      <section className="relative z-20 mx-auto flex min-h-screen max-w-6xl flex-col px-6 py-10">
         <header className="flex items-center justify-between">
           <TextScramble text="ZENCHI ARCADE" className="neon-red" />
-          <div className="flex gap-2">
-            <button className="glass rounded-full px-4 py-2 text-xs" onClick={() => setView("arcade")}>Arcade</button>
-            <button className="glass rounded-full px-4 py-2 text-xs" onClick={() => { setView("admin"); loadAdmin() }}>Admin</button>
-          </div>
+          <LiquidButton variant="outline" size="default" onClick={() => setAuthView("logout")}>
+            <LogOut size={14} /> Logout Page
+          </LiquidButton>
         </header>
 
         <div className="mt-8 grid gap-6 lg:grid-cols-[1.35fr_1fr]">
@@ -267,21 +282,19 @@ export default function App() {
             <div className="relative z-10">
               <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">multi-game platform</p>
               <h1 className="mt-4 max-w-xl text-4xl font-black leading-tight md:text-6xl">Cosmic play. <span className="neon-red">Strict timer.</span></h1>
-              <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-[#232a49]"><div className="h-full bg-gradient-to-r from-[#ff3b4e] to-[#6f7bff]" style={{ width: `${percent(left, session?.limitMs ?? 1)}%` }} /></div>
+              <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-[#232a49]">
+                <div className="h-full bg-gradient-to-r from-[#ff3b4e] to-[#6f7bff]" style={{ width: `${percent(left, session?.limitMs ?? 1)}%` }} />
+              </div>
               <p className="mt-2 text-xs text-muted-foreground">Session power: {percent(left, session?.limitMs ?? 1)}%</p>
               <div className="mt-8 flex flex-wrap items-center gap-3">
-                <button className="btn-red inline-flex items-center gap-2" onClick={login}><LogIn size={16} /> Authenticate</button>
-                <button className="btn-red inline-flex items-center gap-2" onClick={startSession}><Rocket size={16} /> Start Session</button>
-                <button className="glass rounded-full px-5 py-3 text-sm" onClick={stopSession}><span className="inline-flex items-center gap-2"><LogOut size={15} /> Pause / Logout</span></button>
+                <GradientButton onClick={startSession}><Rocket size={16} /> Start Session</GradientButton>
+                <GradientButton variant="variant" onClick={stopSession}>Pause Session</GradientButton>
               </div>
             </div>
           </div>
 
           <aside className="glass rounded-3xl p-5 md:p-7">
             <div className="relative mx-auto mb-4 h-52 w-full max-w-xs"><Globe className="-top-10" /></div>
-            <label className="text-xs text-muted-foreground">Google email (dev auth fallback)</label>
-            <input className="mt-2 w-full rounded-xl border border-[#2f375f] bg-[#090d1a] px-4 py-3 text-sm text-white" placeholder="player@gmail.com" value={email} onChange={(e) => setEmail(e.target.value)} />
-            <div ref={googleBtnRef} className="mt-3" />
             <div className="mt-5 space-y-3 text-sm">
               <p className="flex items-center gap-2"><Clock3 size={15} className="text-primary" /> Time left: {fmt(left)}</p>
               <p className="flex items-center gap-2"><Earth size={15} className="text-primary" /> {geoLabel}</p>
@@ -291,29 +304,21 @@ export default function App() {
           </aside>
         </div>
 
-        {view === "arcade" ? (
-          <section className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {GAMES.map((g) => {
-              const locked = playDisabled || g.status === "soon"
-              return (
-                <article key={g.id} className="glass rounded-2xl p-4">
-                  <p className="text-xs text-muted-foreground">{g.genre}</p>
-                  <h3 className="mt-1 text-lg font-semibold">{g.title}</h3>
-                  <p className="text-xs text-muted-foreground">{g.stars}</p>
-                  <button className="mt-4 w-full rounded-xl border border-[#37406d] px-3 py-2 text-sm" disabled={locked} onClick={() => launchGame(g)}>
-                    {locked ? <span className="inline-flex items-center gap-2"><Lock size={14} /> Locked</span> : "Play"}
-                  </button>
-                </article>
-              )
-            })}
-          </section>
-        ) : (
-          <section className="mt-6 grid gap-4 md:grid-cols-3">
-            <div className="glass rounded-2xl p-4"><p className="text-xs text-muted-foreground">Admin Users</p><p className="mt-2 text-2xl font-bold inline-flex items-center gap-2"><Users size={18} /> {adminData?.users ?? 0}</p></div>
-            <div className="glass rounded-2xl p-4"><p className="text-xs text-muted-foreground">Active Sessions</p><p className="mt-2 text-2xl font-bold inline-flex items-center gap-2"><Gauge size={18} /> {adminData?.activeUsers ?? 0}</p></div>
-            <div className="glass rounded-2xl p-4"><p className="text-xs text-muted-foreground">Exhausted Accounts</p><p className="mt-2 text-2xl font-bold inline-flex items-center gap-2"><Clock3 size={18} /> {adminData?.exhaustedUsers ?? 0}</p></div>
-          </section>
-        )}
+        <section className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {GAMES.map((g) => {
+            const locked = playDisabled || g.status === "soon"
+            return (
+              <article key={g.id} className="glass rounded-2xl p-4">
+                <p className="text-xs text-muted-foreground">{g.genre}</p>
+                <h3 className="mt-1 text-lg font-semibold">{g.title}</h3>
+                <p className="text-xs text-muted-foreground">{g.stars}</p>
+                <button className="mt-4 w-full rounded-xl border border-[#37406d] px-3 py-2 text-sm" disabled={locked}>
+                  {locked ? <span className="inline-flex items-center gap-2"><Lock size={14} /> Locked</span> : "Play"}
+                </button>
+              </article>
+            )
+          })}
+        </section>
       </section>
     </main>
   )
