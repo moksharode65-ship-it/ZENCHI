@@ -74,13 +74,36 @@ type GoogleWindow = Window & {
 
 const GAMES: Game[] = [
   { id: "nebula-run", title: "Nebula Run", genre: "Arcade", stars: "?????", status: "live" },
-  { id: "quantum-drift", title: "Quantum Drift", genre: "Racer", stars: "?????", status: "soon" },
+  { id: "quantum-drift", title: "Quantum Drift", genre: "Race", stars: "?????", status: "soon" },
   { id: "void-strike", title: "Action", genre: "Shooter", stars: "?????", status: "soon" },
   { id: "orbit-ops", title: "Orbit Ops", genre: "Puzzle", stars: "?????", status: "live" },
 ]
 
 const FIRE_COLORS_AUTH = ["#ff233b", "#8a2be2", "#f44336"]
 const FIRE_COLORS_HOME = ["#ff233b", "#1161ff", "#8a2be2"]
+
+const GENRE_SHOWCASE: Array<{ genre: string; image: string; subtitle: string }> = [
+  {
+    genre: "Arcade",
+    image: "https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1400&auto=format&fit=crop",
+    subtitle: "Neon classics, fast fun",
+  },
+  {
+    genre: "Puzzle",
+    image: "https://images.unsplash.com/photo-1586165368502-1bad197a6461?q=80&w=1400&auto=format&fit=crop",
+    subtitle: "Brain-first challenge mode",
+  },
+  {
+    genre: "Shooter",
+    image: "https://images.unsplash.com/photo-1542751371-29b0f74f9713?q=80&w=1400&auto=format&fit=crop",
+    subtitle: "Tactical precision combat",
+  },
+  {
+    genre: "Race",
+    image: "https://images.unsplash.com/photo-1563720223185-11003d516935?q=80&w=1400&auto=format&fit=crop",
+    subtitle: "Full-throttle speed lanes",
+  },
+]
 
 
 function fmt(ms: number) {
@@ -440,6 +463,7 @@ export default function App() {
             </div>
             <div className="mt-5 space-y-3 text-sm">
               <p className="flex items-center gap-2"><Clock3 size={15} className="text-primary" /> Time left: {fmt(left)}</p>
+              <p className="text-xs text-muted-foreground">Daily limit resets at 5:30 AM.</p>
               <p className="flex items-center gap-2"><ShieldCheck size={15} className="text-primary" /> Logged in as: {session?.email || email}</p>
               <p className="flex items-center gap-2"><Swords size={15} className="text-primary" /> Game launch: {playDisabled ? "Locked" : "Ready"}</p>
             </div>
@@ -474,7 +498,7 @@ export default function App() {
             </div>
           ) : null}
 
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div id="games-grid" className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             {visibleGames.map((g) => {
               const locked = playDisabled || g.status === "soon"
               return (
@@ -517,16 +541,27 @@ export default function App() {
                 }
               >
                 <div className="mx-auto grid h-full w-full grid-cols-1 gap-4 rounded-2xl bg-[#0a1124] p-4 md:grid-cols-2">
-                  {[1, 2, 3, 4].map((item) => (
-                    <div
-                      key={item}
-                      className="flex min-h-[140px] items-center justify-center rounded-xl border border-dashed border-[#4a5b8f] bg-[#0c1630] text-center"
+                  {GENRE_SHOWCASE.map((item) => (
+                    <button
+                      key={item.genre}
+                      type="button"
+                      onClick={() => {
+                        setSelectedGenre(item.genre)
+                        setGamePage("genre")
+                        document.getElementById("games-grid")?.scrollIntoView({ behavior: "smooth", block: "start" })
+                      }}
+                      className="group relative min-h-[160px] overflow-hidden rounded-xl border border-[#374b86] text-left transition hover:-translate-y-0.5 hover:border-[#ff4455]"
                     >
-                      <div>
-                        <p className="text-sm font-semibold text-white">Game Artwork Slot {item}</p>
-                        <p className="mt-1 text-xs text-muted-foreground">Drop image later</p>
+                      <img src={item.image} alt={`${item.genre} games`} className="absolute inset-0 h-full w-full object-cover" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#050913] via-[#091127bb] to-[#0a102433]" />
+                      <div className="relative z-10 flex h-full flex-col justify-end p-4">
+                        <p className="text-lg font-bold text-white">{item.genre}</p>
+                        <p className="text-xs text-[#d2dcff]">{item.subtitle}</p>
+                        <span className="mt-2 inline-flex w-fit rounded-full border border-[#5a6ab0] bg-[#111c3fb5] px-2 py-1 text-[11px] text-white/90">
+                          Click to open
+                        </span>
                       </div>
-                    </div>
+                    </button>
                   ))}
                 </div>
               </ContainerScroll>
