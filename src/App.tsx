@@ -5,7 +5,8 @@ import { TextScramble } from "@/components/ui/text-scramble"
 import { GradientButton } from "@/components/ui/gradient-button"
 import { LiquidButton } from "@/components/ui/liquid-glass-button"
 import { WebGLShader } from "@/components/ui/web-gl-shader"
-import { Clock3, LogOut, ShieldCheck, Swords, Lock, Rocket, ArrowLeft } from "lucide-react"
+import { Clock3, LogOut, ShieldCheck, Swords, Lock, Rocket, ArrowLeft, LayoutTemplate } from "lucide-react"
+import { ContainerScroll } from "@/components/ui/container-scroll-animation"
 
 const API = (import.meta.env.VITE_API_URL as string) || "http://localhost:8787"
 const GOOGLE_CLIENT_ID = (import.meta.env.VITE_GOOGLE_CLIENT_ID as string) || ""
@@ -511,6 +512,60 @@ export default function App() {
                 </article>
               )
             })}
+          </div>
+
+          <div className="mt-12">
+            <div className="glass rounded-3xl p-4 md:p-8">
+              <ContainerScroll
+                titleComponent={
+                  <>
+                    <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[#2f3b62] bg-[#0a1124] px-3 py-1 text-xs text-muted-foreground">
+                      <LayoutTemplate size={14} className="text-primary" />
+                      Game Template Scroll
+                    </div>
+                    <h2 className="text-3xl font-semibold text-white md:text-5xl">
+                      {gamePage === "genre" ? (
+                        <>
+                          {selectedGenre} <span className="neon-red">Collection</span>
+                        </>
+                      ) : (
+                        <>
+                          All Games <span className="neon-red">Collection</span>
+                        </>
+                      )}
+                    </h2>
+                    <p className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground md:text-base">
+                      Scroll section reserved for your real game artwork. For now this is a clean template preview layout.
+                    </p>
+                  </>
+                }
+              >
+                <div className="mx-auto grid h-full w-full grid-cols-1 gap-4 rounded-2xl bg-[#0a1124] p-4 md:grid-cols-2">
+                  {GENRE_SHOWCASE.map((item) => (
+                    <button
+                      key={item.genre}
+                      type="button"
+                      onClick={() => {
+                        setSelectedGenre(item.genre)
+                        setGamePage("genre")
+                        document.getElementById("games-grid")?.scrollIntoView({ behavior: "smooth", block: "start" })
+                      }}
+                      className="group relative min-h-[160px] overflow-hidden rounded-xl border border-[#374b86] text-left transition hover:-translate-y-0.5 hover:border-[#ff4455]"
+                    >
+                      <img src={item.image} alt={`${item.genre} games`} className="absolute inset-0 h-full w-full object-cover" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#050913] via-[#091127bb] to-[#0a102433]" />
+                      <div className="relative z-10 flex h-full flex-col justify-end p-4">
+                        <p className="text-lg font-bold text-white">{item.genre}</p>
+                        <p className="text-xs text-[#d2dcff]">{item.subtitle}</p>
+                        <span className="mt-2 inline-flex w-fit rounded-full border border-[#5a6ab0] bg-[#111c3fb5] px-2 py-1 text-[11px] text-white/90">
+                          Click to open
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </ContainerScroll>
+            </div>
           </div>
         </section>
       </section>
