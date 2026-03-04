@@ -7,6 +7,8 @@ import { LiquidButton } from "@/components/ui/liquid-glass-button"
 import { WebGLShader } from "@/components/ui/web-gl-shader"
 import { Clock3, LogOut, ShieldCheck, Swords, Lock, Rocket, ArrowLeft, LayoutTemplate } from "lucide-react"
 import { ContainerScroll } from "@/components/ui/container-scroll-animation"
+import { ContainerScrollAnimation, ContainerScrollInsetX, ContainerScrollScale, ContainerScrollTranslate } from "@/components/ui/scroll-trigger-animations"
+import { ParallaxComponent } from "@/components/ui/parallax-scrolling"
 
 const API = (import.meta.env.VITE_API_URL as string) || "http://localhost:8787"
 const GOOGLE_CLIENT_ID = (import.meta.env.VITE_GOOGLE_CLIENT_ID as string) || ""
@@ -565,6 +567,37 @@ export default function App() {
                   ))}
                 </div>
               </ContainerScroll>
+            </div>
+
+            {/* Scroll Trigger Animations Gallery */}
+            <div className="glass rounded-3xl p-4 md:p-8 -mt-4">
+              <ContainerScrollAnimation className="overflow-hidden rounded-2xl">
+                <ContainerScrollTranslate className="h-[80vh] relative">
+                  <ContainerScrollInsetX className="h-full relative">
+                    <ContainerScrollScale className="flex gap-3 overflow-x-auto px-4 py-8 bg-[#0a1124] rounded-xl">
+                      {[
+                        "https://images.unsplash.com/photo-1511512578047-dfb367046420?w=600&h=400&fit=crop",
+                        "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=600&h=400&fit=crop",
+                        "https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=600&h=400&fit=crop",
+                        "https://images.unsplash.com/photo-1560253023-3ec5d502959f?w=600&h=400&fit=crop",
+                        "https://images.unsplash.com/photo-1518770660439-4636190af475?w=600&h=400&fit=crop",
+                      ].map((url, i) => (
+                        <img
+                          key={i}
+                          src={url}
+                          alt={`Game ${i + 1}`}
+                          className="aspect-[3/2] h-[200px] md:h-[280px] w-auto rounded-xl object-cover shrink-0"
+                        />
+                      ))}
+                    </ContainerScrollScale>
+                  </ContainerScrollInsetX>
+                </ContainerScrollTranslate>
+              </ContainerScrollAnimation>
+            </div>
+
+            {/* Parallax Section */}
+            <div className="glass rounded-3xl p-4 md:p-8 -mt-4">
+              <ParallaxComponent />
             </div>
           </div>
         </section>

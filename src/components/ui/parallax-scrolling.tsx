@@ -1,58 +1,58 @@
-'use client'
+'use client';
 
-import React, { useEffect, useRef } from 'react'
-import gsap from 'gsap'
-import { ScrollTrigger } from 'gsap/ScrollTrigger'
-import Lenis from '@studio-freight/lenis'
+import React, { useEffect, useRef } from 'react';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import Lenis from '@studio-freight/lenis';
 
 export function ParallaxComponent() {
-  const parallaxRef = useRef<HTMLDivElement>(null)
+  const parallaxRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    gsap.registerPlugin(ScrollTrigger)
+    gsap.registerPlugin(ScrollTrigger);
 
-    const triggerElement = parallaxRef.current?.querySelector('[data-parallax-layers]')
+    const triggerElement = parallaxRef.current?.querySelector('[data-parallax-layers]');
     if (triggerElement) {
       const tl = gsap.timeline({
         scrollTrigger: {
           trigger: triggerElement,
-          start: '0% 0%',
-          end: '100% 0%',
-          scrub: 0,
+          start: "0% 0%",
+          end: "100% 0%",
+          scrub: 0
         },
-      })
+      });
 
       const layers = [
-        { layer: '1', yPercent: 70 },
-        { layer: '2', yPercent: 55 },
-        { layer: '3', yPercent: 40 },
-        { layer: '4', yPercent: 10 },
-      ]
+        { layer: "1", yPercent: 70 },
+        { layer: "2", yPercent: 55 },
+        { layer: "3", yPercent: 40 },
+        { layer: "4", yPercent: 10 }
+      ];
 
       layers.forEach((layerObj, idx) => {
         tl.to(
           triggerElement.querySelectorAll(`[data-parallax-layer="${layerObj.layer}"]`),
-          { yPercent: layerObj.yPercent, ease: 'none' },
-          idx === 0 ? undefined : '<',
-        )
-      })
+          { yPercent: layerObj.yPercent, ease: "none" },
+          idx === 0 ? undefined : "<"
+        );
+      });
     }
 
-    const lenis = new Lenis()
-    lenis.on('scroll', ScrollTrigger.update)
+    const lenis = new Lenis();
+    lenis.on('scroll', ScrollTrigger.update);
     gsap.ticker.add((time) => {
-      lenis.raf(time * 1000)
-    })
-    gsap.ticker.lagSmoothing(0)
+      lenis.raf(time * 1000);
+    });
+    gsap.ticker.lagSmoothing(0);
 
     return () => {
-      ScrollTrigger.getAll().forEach((st) => st.kill())
+      ScrollTrigger.getAll().forEach(st => st.kill());
       if (triggerElement) {
-        gsap.killTweensOf(triggerElement)
+        gsap.killTweensOf(triggerElement);
       }
-      lenis.destroy()
-    }
-  }, [])
+      lenis.destroy();
+    };
+  }, []);
 
   return (
     <div className="relative overflow-hidden rounded-3xl border border-[#243053] bg-[#060912]" ref={parallaxRef}>
@@ -88,5 +88,5 @@ export function ParallaxComponent() {
         </div>
       </section>
     </div>
-  )
+  );
 }
