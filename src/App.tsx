@@ -9,6 +9,7 @@ import { Clock3, LogOut, ShieldCheck, Swords, Lock, Rocket, ArrowLeft, LayoutTem
 import { ContainerScroll } from "@/components/ui/container-scroll-animation"
 import { ContainerScrollAnimation, ContainerScrollInsetX, ContainerScrollScale, ContainerScrollTranslate } from "@/components/ui/scroll-trigger-animations"
 import { ParallaxComponent } from "@/components/ui/parallax-scrolling"
+import { DesertDrift } from "@/components/ui/desert-drift"
 
 const API = (import.meta.env.VITE_API_URL as string) || "http://localhost:8787"
 const GOOGLE_CLIENT_ID = (import.meta.env.VITE_GOOGLE_CLIENT_ID as string) || ""
@@ -472,7 +473,9 @@ export default function App() {
           </aside>
         </div>
 
-        <section className="mt-6">
+        <section className="mt-6 relative">
+          <DesertDrift className="h-full min-h-[800px] rounded-3xl" />
+          <div className="relative z-10 p-4 md:p-6">
           <div className="mb-4 flex flex-wrap items-center gap-2">
             <button
               className={`rounded-full px-3 py-1 text-xs ${gamePage === "home" ? "btn-red" : "glass"}`}
@@ -599,6 +602,7 @@ export default function App() {
             <div className="glass rounded-3xl p-4 md:p-8 -mt-4">
               <ParallaxComponent />
             </div>
+          </div>
           </div>
         </section>
       </section>
