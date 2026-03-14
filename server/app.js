@@ -10,13 +10,28 @@ import sqlite3 from 'sqlite3';
 import crypto from 'crypto';
 
 const app = express();
+app.set("trust proxy", 1);
 const PORT = process.env.PORT || 3001;
+const IS_PROD = process.env.NODE_ENV === "production";
+const allowedOrigins = (process.env.CLIENT_ORIGIN || "http://localhost:5173")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
 // Debug: check if env loaded
 console.log('GOOGLE_CLIENT_ID:', process.env.GOOGLE_CLIENT_ID);
 console.log('JWT_SECRET:', process.env.JWT_SECRET ? 'loaded' : 'missing');
 
-app.use(cors({ origin: "http://localhost:5173", credentials: true }));
+app.use(
+    cors({
+        origin: (origin, callback) => {
+            if (!origin) return callback(null, true);
+            if (allowedOrigins.includes(origin)) return callback(null, true);
+            return callback(new Error("Not allowed by CORS"));
+        },
+        credentials: true,
+    })
+);
 app.use(bodyParser.json());
 app.use(cookieParser());
 
@@ -184,7 +199,7 @@ app.post('/auth/google', async (req, res) => {
                         // Initialize user stats
                         db.run('INSERT INTO user_stats (email) VALUES (?)', [email]);
                         
-                        res.cookie('session_token', token, { httpOnly: true, sameSite: 'strict', secure: true });
+                        res.cookie('session_token', token, { httpOnly: true, sameSite: IS_PROD ? 'none' : 'lax', secure: IS_PROD });
                         return res.json({ 
                             success: true, 
                             user: { email },
@@ -214,7 +229,7 @@ app.post('/auth/google', async (req, res) => {
                 db.run(updateSQL, params, function (err) {
                     if (err) return res.status(500).json({ error: 'Failed to update session' });
                     
-                    res.cookie('session_token', token, { httpOnly: true, sameSite: 'strict', secure: true });
+                    res.cookie('session_token', token, { httpOnly: true, sameSite: IS_PROD ? 'none' : 'lax', secure: IS_PROD });
                     return res.json({ 
                         success: true, 
                         user: { email },
@@ -258,7 +273,7 @@ app.post('/auth/verify', async (req, res) => {
             db.run(insertSQL, [email, deviceId, token], function (err) {
                 if (err) return res.status(500).json({ error: 'Failed to create user' });
                 // Set HTTP‑only cookie
-                res.cookie('session_token', token, { httpOnly: true, sameSite: 'strict', secure: true });
+                res.cookie('session_token', token, { httpOnly: true, sameSite: IS_PROD ? 'none' : 'lax', secure: IS_PROD });
                 return res.json({ success: true, message: 'User created and logged in' });
             });
         } else {
@@ -273,7 +288,7 @@ app.post('/auth/verify', async (req, res) => {
             db.run(updateSQL, [token, deviceId, email], function (err) {
                 if (err) return res.status(500).json({ error: 'Failed to update session' });
                 // Overwrite previous cookie
-                res.cookie('session_token', token, { httpOnly: true, sameSite: 'strict', secure: true });
+                res.cookie('session_token', token, { httpOnly: true, sameSite: IS_PROD ? 'none' : 'lax', secure: IS_PROD });
                 return res.json({ success: true, message: 'Logged in successfully' });
             });
         }
@@ -548,6 +563,6 @@ app.post('/credits/spend', authMiddleware, (req, res) => {
     res.json({ success: true });
 });
 
-app.listen(PORT, () => {
-    console.log(`Auth server listening on port ${PORT}`);
+app.listen(PORT, "0.0.0.0", () => {
+    console.log(`Auth server listening on 0.0.0.0:${PORT}`);
 });
