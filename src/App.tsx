@@ -5,7 +5,7 @@ import { TextScramble } from "@/components/ui/text-scramble"
 import { GradientButton } from "@/components/ui/gradient-button"
 import { LiquidButton } from "@/components/ui/liquid-glass-button"
 import { WebGLShader } from "@/components/ui/web-gl-shader"
-import { Clock3, LogOut, ShieldCheck, Swords, Lock, Rocket, ArrowLeft, LayoutTemplate, LayoutDashboard, Coins, Gamepad2, Star } from "lucide-react"
+import { Clock3, LogOut, ShieldCheck, Swords, Lock, Rocket, ArrowLeft, LayoutTemplate, LayoutDashboard, Coins, Gamepad2, Star, Flame } from "lucide-react"
 import AnalyticsDashboardDemo from "@/components/ui/analytics-dashboard-demo"
 import ZenchiDashboard from "@/components/ui/ZenchiDashboard"
 import { ContainerScroll } from "@/components/ui/container-scroll-animation"
@@ -46,7 +46,7 @@ type AuthResponse = {
 
 type AuthView = "login" | "logout" | "home" | "dashboard"
 type GamePage = "home" | "genre"
-type Game = { id: string; title: string; genre: string; stars: string; status: "live" | "soon" }
+type Game = { id: string; title: string; genre: string; stars: string; status: "live" }
 type Review = {
   id: string
   gameId: string
@@ -101,12 +101,8 @@ type GoogleWindow = Window & {
 }
 
 const GAMES: Game[] = [
-  { id: "nebula-run", title: "Nebula Run", genre: "Arcade", stars: "?????", status: "soon" },
   { id: "neo-football", title: "Neo Football 2087", genre: "Arcade", stars: "????★", status: "live" },
   { id: "cyber-run", title: "Cyber Run", genre: "Arcade", stars: "????★", status: "live" },
-  { id: "quantum-drift", title: "Quantum Drift", genre: "Race", stars: "?????", status: "soon" },
-  { id: "void-strike", title: "Void Strike", genre: "Shooter", stars: "?????", status: "soon" },
-  { id: "orbit-ops", title: "Orbit Ops", genre: "Puzzle", stars: "?????", status: "soon" },
 ]
 
 const FIRE_COLORS_AUTH = ["#ff233b", "#8a2be2", "#f44336"]
@@ -120,22 +116,8 @@ const GENRE_SHOWCASE: Array<{ genre: string; image: string; subtitle: string }> 
     image: "https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1400&auto=format&fit=crop",
     subtitle: "Neon classics, fast fun",
   },
-  {
-    genre: "Puzzle",
-    image: "https://images.unsplash.com/photo-1586165368502-1bad197a6461?q=80&w=1400&auto=format&fit=crop",
-    subtitle: "Brain-first challenge mode",
-  },
-  {
-    genre: "Shooter",
-    image: "https://images.unsplash.com/photo-1542751371-29b0f74f9713?q=80&w=1400&auto=format&fit=crop",
-    subtitle: "Tactical precision combat",
-  },
-  {
-    genre: "Race",
-    image: "https://images.unsplash.com/photo-1563720223185-11003d516935?q=80&w=1400&auto=format&fit=crop",
-    subtitle: "Full-throttle speed lanes",
-  },
 ]
+
 
 function loadReviews(): Review[] {
   if (typeof window === "undefined") return []
@@ -270,6 +252,8 @@ export default function App() {
   const [authToken, setAuthToken] = useState(() => loadToken())
   const [credits, setCredits] = useState<CreditData | null>(null)
   const [gamesPlayed, setGamesPlayed] = useState<Record<string, number>>({})
+  const [streakDays, setStreakDays] = useState(0)
+  const [gameCosts, setGameCosts] = useState<Record<string, number>>({})
   const [reviews, setReviews] = useState<Review[]>(() => loadReviews())
   const [reviewGameId, setReviewGameId] = useState<string>(() => GAMES.find((g) => g.status === "live")?.id || GAMES[0]?.id || "")
   const [reviewRating, setReviewRating] = useState(5)
@@ -356,8 +340,10 @@ export default function App() {
   const fetchGameCosts = async () => {
     try {
       const costs = (await api("/credits/game-costs")) as Record<string, number>
-      return costs
+      setGameCosts(costs || {})
+      return costs || {}
     } catch {
+      setGameCosts({})
       return {}
     }
   }
@@ -383,10 +369,12 @@ export default function App() {
       setAuthView("home")
       setMessage("")
       await fetchCredits()
+      await fetchGameCosts()
       // Fetch games played
       try {
-        const stats = (await api("/api/dashboard")) as { gamesPlayed: number }
+        const stats = (await api("/api/dashboard")) as { gamesPlayed: number; streakDays?: number }
         setGamesPlayed({ total: stats.gamesPlayed || 0 })
+        setStreakDays(stats.streakDays || 0)
       } catch {}
     } catch {
       setAuthView("login")
@@ -417,6 +405,8 @@ export default function App() {
         setSession(data.session)
         setSessionSyncedAt(Date.now())
       }
+      await fetchCredits()
+      await fetchGameCosts()
       setAutoLogoutDone(false)
       setAuthView("home")
       setMessage("")
@@ -449,6 +439,8 @@ export default function App() {
   useEffect(() => {
     if (authView !== "home") return
     void refreshSession()
+    void fetchCredits()
+    void fetchGameCosts()
 
     const uiPoll = setInterval(() => {
       void refreshSession()
@@ -711,6 +703,7 @@ export default function App() {
             <div className="mt-5 space-y-3 text-sm">
               <p className="flex items-center gap-2"><Clock3 size={15} className="text-primary" /> Time left: {fmt(left)}</p>
               <p className="flex items-center gap-2"><Coins size={15} className="text-yellow-400" /> Credits: {credits?.balance ?? "—"}</p>
+              <p className="flex items-center gap-2"><Flame size={15} className="text-orange-500" /> Day Streak: {streakDays ?? 0}</p>
               <p className="flex items-center gap-2"><Gamepad2 size={15} className="text-purple-400" /> Games played: {gamesPlayed.total ?? 0}</p>
               <p className="text-xs text-muted-foreground">Daily limit resets at 5:30 AM.</p>
               <p className="flex items-center gap-2"><ShieldCheck size={15} className="text-primary" /> Logged in as: {session?.email || email}</p>
@@ -733,7 +726,9 @@ export default function App() {
                   fetchCredits()
                   try {
                     api("/api/dashboard").then((stats) => {
-                      setGamesPlayed({ total: (stats as { gamesPlayed?: number }).gamesPlayed || 0 })
+                      const cast = stats as { gamesPlayed?: number; streakDays?: number }
+                      setGamesPlayed({ total: cast.gamesPlayed || 0 })
+                      setStreakDays(cast.streakDays || 0)
                     })
                   } catch {}
                 }}
@@ -753,7 +748,9 @@ export default function App() {
                   fetchCredits()
                   try {
                     api("/api/dashboard").then((stats) => {
-                      setGamesPlayed({ total: (stats as { gamesPlayed?: number }).gamesPlayed || 0 })
+                      const cast = stats as { gamesPlayed?: number; streakDays?: number }
+                      setGamesPlayed({ total: cast.gamesPlayed || 0 })
+                      setStreakDays(cast.streakDays || 0)
                     })
                   } catch {}
                 }}
@@ -779,9 +776,8 @@ export default function App() {
                 </div>
                 <div id="games-grid" className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                   {visibleGames.map((g) => {
-                    const locked = playDisabled || g.status === "soon"
-                    const gameCosts: Record<string, number> = { "nebula-run": 10, "quantum-drift": 15, "void-strike": 20, "orbit-ops": 10, "neo-football": 5, "cyber-run": 5 }
-                    const cost = gameCosts[g.id] || 5
+                    const locked = playDisabled
+                    const cost = gameCosts[g.id] ?? 5
                     return (
                       <article key={g.id} className="glass rounded-2xl p-4">
                         <p className="text-xs text-muted-foreground">{g.genre}</p>
