@@ -3,3 +3,9 @@ dist/
 .vscode/
 .DS_Store
 *.log
+.env
+server/.env
+*.db
+*.sqlite
+*.sqlite3
+*.tsbuildinfo

@@ -1,0 +1,40 @@
+{
+  "players": {
+    "TEST-PILOT": {
+      "name": "TEST-PILOT",
+      "credits": 1400,
+      "wave": 6,
+      "totalRuns": 1,
+      "lastRunAt": "2026-03-01T00:00:00.000Z",
+      "syncedAt": "2026-03-01T15:55:27.430Z",
+      "saveData": {
+        "pilotName": "TEST-PILOT",
+        "credits": 1400,
+        "runHistory": [
+          {
+            "wave": 6,
+            "score": 250,
+            "creds": 88
+          }
+        ]
+      }
+    }
+  },
+  "runs": [
+    {
+      "id": "131f8af7-b82d-4f5f-afc6-3eb7ed07b017",
+      "name": "TEST-PILOT",
+      "timestamp": "2026-03-01T00:00:00.000Z",
+      "won": false,
+      "wave": 6,
+      "score": 250,
+      "creditsEarned": 88,
+      "kills": 20,
+      "maxCombo": 4
+    }
+  ],
+  "meta": {
+    "createdAt": "",
+    "lastUpdatedAt": "2026-03-01T15:55:27.430Z"
+  }
+}

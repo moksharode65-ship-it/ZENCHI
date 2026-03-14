@@ -1,44 +1,193 @@
 {
   "users": [
     {
-      "id": 1772525037226,
-      "email": "mok@gmail.com",
-      "googleSub": null,
-      "createdAt": 1772525037226
+      "id": 1773339457573,
+      "email": "forfreeuses04@gmail.com",
+      "googleSub": "107627598651460743702",
+      "passwordHash": null,
+      "createdAt": 1773339457573,
+      "deviceId": "5f7c619d-ddf9-4890-ac67-4e3f3029e2b4"
     },
     {
-      "id": 1772525699111,
-      "email": "yo@gmail.com",
-      "googleSub": null,
-      "createdAt": 1772525699111
+      "id": 1773341016801,
+      "email": "moksharode65@gmail.com",
+      "googleSub": "109122357983260594884",
+      "passwordHash": null,
+      "createdAt": 1773341016801
     }
   ],
   "sessions": {
-    "1772525037226": {
-      "remainingMs": 21599937,
-      "totalUsedMs": 63,
-      "active": false,
-      "startedAt": null,
-      "lastLat": 19.182053286610095,
-      "lastLng": 72.83794160855203
-    },
-    "1772525699111": {
-      "remainingMs": 21600000,
-      "totalUsedMs": 0,
-      "active": false,
-      "startedAt": null,
+    "1773339457573": {
+      "remainingMs": 20036767,
+      "totalUsedMs": 1563233,
+      "active": true,
+      "startedAt": 1773391426698,
       "lastLat": null,
-      "lastLng": null
+      "lastLng": null,
+      "heartbeatAt": 1773391421680
+    },
+    "1773341016801": {
+      "remainingMs": 21599931,
+      "totalUsedMs": 69,
+      "active": true,
+      "startedAt": 1773341017128,
+      "lastLat": null,
+      "lastLng": null,
+      "heartbeatAt": 1773341017059
     }
   },
-  "geoLocks": [
-    {
-      "id": 1772525388230.3013,
-      "userId": 1772525037226,
-      "email": "mok@gmail.com",
-      "lat": 19.182053286610095,
-      "lng": 72.83794160855203,
-      "createdAt": 1772525388230
+  "geoLocks": [],
+  "credits": {
+    "1773339457573": {
+      "balance": 26985,
+      "totalSpent": 40,
+      "transactions": [
+        {
+          "id": 1773339534643,
+          "type": "spend",
+          "amount": -5,
+          "gameId": "cyber-run",
+          "timestamp": 1773339534643
+        },
+        {
+          "id": 1773365454966,
+          "type": "spend",
+          "amount": -5,
+          "gameId": "neo-football",
+          "timestamp": 1773365454966
+        },
+        {
+          "id": 1773365455410,
+          "type": "spend",
+          "amount": -5,
+          "gameId": "neo-football",
+          "timestamp": 1773365455410
+        },
+        {
+          "id": 1773365456058,
+          "type": "spend",
+          "amount": -5,
+          "gameId": "neo-football",
+          "timestamp": 1773365456058
+        },
+        {
+          "type": "daily_bonus",
+          "amount": 25,
+          "date": "2026-03-13T01:31:32.998Z"
+        },
+        {
+          "id": 1773365512908,
+          "type": "purchase",
+          "amount": 2500,
+          "package": "Pro Pack",
+          "timestamp": 1773365512908
+        },
+        {
+          "id": 1773365514940,
+          "type": "purchase",
+          "amount": 5000,
+          "package": "Elite Pack",
+          "timestamp": 1773365514940
+        },
+        {
+          "id": 1773365953987,
+          "type": "spend",
+          "amount": -5,
+          "gameId": "neo-football",
+          "timestamp": 1773365953987
+        },
+        {
+          "id": 1773375206814,
+          "type": "spend",
+          "amount": -5,
+          "gameId": "neo-football",
+          "timestamp": 1773375206814
+        },
+        {
+          "id": 1773375588114,
+          "type": "spend",
+          "amount": -5,
+          "gameId": "neo-football",
+          "timestamp": 1773375588114
+        },
+        {
+          "id": 1773375616081,
+          "type": "purchase",
+          "amount": 500,
+          "package": "Starter Pack",
+          "timestamp": 1773375616081
+        },
+        {
+          "id": 1773375619370,
+          "type": "purchase",
+          "amount": 500,
+          "package": "Starter Pack",
+          "timestamp": 1773375619370
+        },
+        {
+          "id": 1773375678767,
+          "type": "purchase",
+          "amount": 2500,
+          "package": "Pro Pack",
+          "timestamp": 1773375678767
+        },
+        {
+          "id": 1773375678894,
+          "type": "purchase",
+          "amount": 2500,
+          "package": "Pro Pack",
+          "timestamp": 1773375678894
+        },
+        {
+          "id": 1773375679027,
+          "type": "purchase",
+          "amount": 2500,
+          "package": "Pro Pack",
+          "timestamp": 1773375679027
+        },
+        {
+          "id": 1773375679177,
+          "type": "purchase",
+          "amount": 2500,
+          "package": "Pro Pack",
+          "timestamp": 1773375679177
+        },
+        {
+          "id": 1773375679306,
+          "type": "purchase",
+          "amount": 2500,
+          "package": "Pro Pack",
+          "timestamp": 1773375679306
+        },
+        {
+          "id": 1773375679409,
+          "type": "purchase",
+          "amount": 2500,
+          "package": "Pro Pack",
+          "timestamp": 1773375679409
+        },
+        {
+          "id": 1773375679834,
+          "type": "purchase",
+          "amount": 2500,
+          "package": "Pro Pack",
+          "timestamp": 1773375679834
+        },
+        {
+          "id": 1773391100992,
+          "type": "spend",
+          "amount": -5,
+          "gameId": "cyber-run",
+          "timestamp": 1773391100992
+        }
+      ],
+      "totalEarned": 25,
+      "streakDays": 1,
+      "lastLogin": "2026-03-13T01:31:32.998Z"
     }
-  ]
+  },
+  "creditTransactions": [],
+  "deviceBindings": {
+    "5f7c619d-ddf9-4890-ac67-4e3f3029e2b4": 1773339457573
+  }
 }

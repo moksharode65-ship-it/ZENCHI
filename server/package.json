@@ -1,0 +1,24 @@
+{
+    "name": "zenchi-auth",
+    "version": "1.0.0",
+    "description": "Secure authentication backend for ZENCHI",
+    "type": "module",
+    "main": "index.js",
+    "scripts": {
+        "start": "node index.js",
+        "dev": "nodemon index.js"
+    },
+    "author": "",
+    "license": "MIT",
+    "dependencies": {
+        "express": "^4.18.2",
+        "passport": "^0.6.0",
+        "passport-google-oauth20": "^2.0.0",
+        "jsonwebtoken": "^9.0.0",
+        "cookie-parser": "^1.4.6",
+        "sqlite3": "^5.1.6",
+        "dotenv": "^16.3.1",
+        "body-parser": "^1.20.2",
+        "cors": "^2.8.5"
+    }
+}
