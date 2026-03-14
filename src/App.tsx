@@ -112,6 +112,7 @@ const GAMES: Game[] = [
 const FIRE_COLORS_AUTH = ["#ff233b", "#8a2be2", "#f44336"]
 const FIRE_COLORS_HOME = ["#ff233b", "#1161ff", "#8a2be2"]
 const REVIEW_STORAGE_KEY = "zenchi_reviews_v1"
+const TOKEN_STORAGE_KEY = "zenchi_token_v1"
 
 const GENRE_SHOWCASE: Array<{ genre: string; image: string; subtitle: string }> = [
   {
@@ -153,6 +154,28 @@ function saveReviews(reviews: Review[]) {
   if (typeof window === "undefined") return
   try {
     window.localStorage.setItem(REVIEW_STORAGE_KEY, JSON.stringify(reviews))
+  } catch {
+    // ignore storage failures
+  }
+}
+
+function loadToken() {
+  if (typeof window === "undefined") return ""
+  try {
+    return window.localStorage.getItem(TOKEN_STORAGE_KEY) || ""
+  } catch {
+    return ""
+  }
+}
+
+function saveToken(token: string) {
+  if (typeof window === "undefined") return
+  try {
+    if (token) {
+      window.localStorage.setItem(TOKEN_STORAGE_KEY, token)
+    } else {
+      window.localStorage.removeItem(TOKEN_STORAGE_KEY)
+    }
   } catch {
     // ignore storage failures
   }
@@ -244,7 +267,7 @@ export default function App() {
   const [autoResumeTried, setAutoResumeTried] = useState(false)
   const [googleReady, setGoogleReady] = useState(false)
   const [authLoading, setAuthLoading] = useState(false)
-  const [authToken, setAuthToken] = useState("")
+  const [authToken, setAuthToken] = useState(() => loadToken())
   const [credits, setCredits] = useState<CreditData | null>(null)
   const [gamesPlayed, setGamesPlayed] = useState<Record<string, number>>({})
   const [reviews, setReviews] = useState<Review[]>(() => loadReviews())
@@ -292,10 +315,14 @@ export default function App() {
   )
 
   const api = async (path: string, method = "GET", body?: unknown, keepalive?: boolean) => {
+    const headers: Record<string, string> = {}
+    if (body) headers["Content-Type"] = "application/json"
+    if (authToken) headers.Authorization = `Bearer ${authToken}`
+
     const res = await fetch(`${API}${path}`, {
       method,
       credentials: "include",
-      headers: body ? { "Content-Type": "application/json" } : undefined,
+      headers: Object.keys(headers).length ? headers : undefined,
       body: body ? JSON.stringify(body) : undefined,
       keepalive,
     })
@@ -385,6 +412,7 @@ export default function App() {
       const token = (data as { token?: string }).token || ""
       setEmail(accountEmail)
       setAuthToken(token)
+      saveToken(token)
       if (data.session) {
         setSession(data.session)
         setSessionSyncedAt(Date.now())
@@ -536,6 +564,7 @@ export default function App() {
     setSession(null)
     setEmail("")
     setAuthToken("")
+    saveToken("")
     setAuthView("login")
     setMessage(logoutMessage)
   }

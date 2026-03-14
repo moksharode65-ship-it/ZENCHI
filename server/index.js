@@ -9,9 +9,18 @@ import path from "node:path"
 import crypto from "node:crypto"
 
 const app = express()
+app.set("trust proxy", 1)
+const allowedOrigins = (process.env.CLIENT_ORIGIN || "http://localhost:5173")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean)
 app.use(
   cors({
-    origin: process.env.CLIENT_ORIGIN || "http://localhost:5173",
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true)
+      if (allowedOrigins.includes(origin)) return callback(null, true)
+      return callback(new Error("Not allowed by CORS"))
+    },
     credentials: true,
   }),
 )
@@ -142,7 +151,7 @@ function setSessionCookie(res, token) {
   res.cookie(COOKIE_NAME, token, {
     httpOnly: true,
     secure: IS_PROD,
-    sameSite: "lax",
+    sameSite: IS_PROD ? "none" : "lax",
     path: "/",
     maxAge: 7 * 24 * 60 * 60 * 1000,
   })
@@ -152,7 +161,7 @@ function setDeviceCookie(res, deviceId) {
   res.cookie(DEVICE_COOKIE, deviceId, {
     httpOnly: true,
     secure: IS_PROD,
-    sameSite: "lax",
+    sameSite: IS_PROD ? "none" : "lax",
     path: "/",
     maxAge: 365 * 24 * 60 * 60 * 1000,
   })
