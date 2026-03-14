@@ -931,7 +931,7 @@ export default function App() {
                     >
                       {GAMES.map((g) => (
                         <option key={g.id} value={g.id}>
-                          {g.title} {g.status === "soon" ? "(Soon)" : ""}
+                          {g.title}
                         </option>
                       ))}
                     </select>
