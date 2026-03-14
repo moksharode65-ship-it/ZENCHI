@@ -709,6 +709,6 @@ app.get("/admin/overview", (req, res) => {
   res.json({ users, activeUsers, exhaustedUsers, recentLocks, geoRadiusKm: GEO_RADIUS_KM })
 })
 
-app.listen(PORT, () => {
-  console.log(`ZENCHI API running on http://localhost:${PORT}`)
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`ZENCHI API running on 0.0.0.0:${PORT}`)
 })
