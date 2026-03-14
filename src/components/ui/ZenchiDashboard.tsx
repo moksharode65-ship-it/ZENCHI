@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Trophy, Star, Flame, Coins, Target, Clock, Gamepad2, TrendingUp, Award, Gift, Zap } from "lucide-react";
 
-const API = (import.meta.env.VITE_API_URL as string) || "http://localhost:8787";
+const API = "http://localhost:8787";
 
 interface DashboardData {
   credits: number;
@@ -60,7 +60,7 @@ export default function ZenchiDashboard({ authToken = "", isAuthenticated = fals
       const [dashRes, achRes, lbRes] = await Promise.all([
         fetch(`${API}/api/dashboard`, { credentials: "include", headers: authHeaders }),
         fetch(`${API}/api/achievements`, { credentials: "include", headers: authHeaders }),
-        fetch(`${API}/api/leaderboard`, { credentials: "include", headers: authHeaders })
+        fetch(`${API}/api/leaderboard`)
       ]);
 
       if (dashRes.ok) {
@@ -106,7 +106,7 @@ export default function ZenchiDashboard({ authToken = "", isAuthenticated = fals
       const res = await fetch(`${API}/api/daily-bonus`, {
         method: "POST",
         credentials: "include",
-        headers: authHeaders ? { "Content-Type": "application/json", ...authHeaders } : { "Content-Type": "application/json" }
+        headers: authHeaders
       });
 
       if (res.ok) {
