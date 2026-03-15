@@ -35,6 +35,9 @@ app.use(
 app.use(bodyParser.json());
 app.use(cookieParser());
 
+// Serve static game files from dist folder
+app.use(express.static('../dist'));
+
 // ---------- SQLite DB ----------
 const db = new sqlite3.Database('./auth.db', (err) => {
     if (err) {
