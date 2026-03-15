@@ -104,6 +104,7 @@ const GAMES: Game[] = [
   { id: "nebula-run", title: "Nebula Run", genre: "Arcade", stars: "?????", status: "soon" },
   { id: "neo-football", title: "Neo Football 2087", genre: "Arcade", stars: "????★", status: "live" },
   { id: "cyber-run", title: "Cyber Run", genre: "Arcade", stars: "????★", status: "live" },
+  { id: "chess", title: "Chess", genre: "Puzzle", stars: "????★", status: "live" },
   { id: "quantum-drift", title: "Quantum Drift", genre: "Race", stars: "?????", status: "soon" },
   { id: "void-strike", title: "Void Strike", genre: "Shooter", stars: "?????", status: "soon" },
   { id: "orbit-ops", title: "Orbit Ops", genre: "Puzzle", stars: "?????", status: "soon" },
@@ -759,6 +760,26 @@ export default function App() {
                 }}
                 authToken={authToken}
                 gameId="cyber-run"
+              />
+            )}
+            {activeGame === "chess" && (
+              <GameFrame
+                gamePath="/chess-game.html"
+                title="♟️ Chess"
+                isActive={session?.active && left > 0}
+                onClose={() => {
+                  setActiveGame(null)
+                  // Refresh stats after game
+                  refreshSession()
+                  fetchCredits()
+                  try {
+                    api("/api/dashboard").then((stats) => {
+                      setGamesPlayed({ total: (stats as { gamesPlayed?: number }).gamesPlayed || 0 })
+                    })
+                  } catch {}
+                }}
+                authToken={authToken}
+                gameId="chess"
               />
             )}
           </div>

@@ -92,6 +92,26 @@ db.serialize(() => {
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
     
+    // Create chess games table
+    db.run(`CREATE TABLE IF NOT EXISTS chess_games (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        fen TEXT NOT NULL,
+        player_email TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`);
+    
+    // Create chess moves table
+    db.run(`CREATE TABLE IF NOT EXISTS chess_moves (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        gameId INTEGER NOT NULL,
+        notation TEXT NOT NULL,
+        fen TEXT,
+        player_email TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(gameId) REFERENCES chess_games(id) ON DELETE CASCADE
+    )`);
+    
     console.log('Tables created');
     
     // Seed default achievements
@@ -561,6 +581,72 @@ app.get('/credits/game-costs', authMiddleware, (req, res) => {
 app.post('/credits/spend', authMiddleware, (req, res) => {
     // Games are free
     res.json({ success: true });
+});
+
+// ========== Chess Game Routes ==========
+
+// Get all chess games
+app.get('/api/chess/games', authMiddleware, (req, res) => {
+    db.all('SELECT id, name, fen, created_at FROM chess_games ORDER BY created_at DESC', [], (err, rows) => {
+        if (err) return res.status(500).json({ error: 'Database error' });
+        res.json({ games: rows || [] });
+    });
+});
+
+// Get single chess game
+app.get('/api/chess/games/:gameId', authMiddleware, (req, res) => {
+    db.get('SELECT id, name, fen, created_at FROM chess_games WHERE id = ?', [req.params.gameId], (err, row) => {
+        if (err) return res.status(500).json({ error: 'Database error' });
+        if (!row) return res.status(404).json({ error: 'Game not found' });
+        res.json(row);
+    });
+});
+
+// Get moves for a chess game
+app.get('/api/chess/games/:gameId/moves', authMiddleware, (req, res) => {
+    db.all('SELECT id, notation, fen, created_at FROM chess_moves WHERE gameId = ? ORDER BY id ASC', [req.params.gameId], (err, rows) => {
+        if (err) return res.status(500).json({ error: 'Database error' });
+        res.json({ moves: rows || [] });
+    });
+});
+
+// Create new chess game
+app.post('/api/chess/games', authMiddleware, (req, res) => {
+    const { name, fen } = req.body;
+    const email = req.user.email;
+    const defaultFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR';
+    
+    db.run('INSERT INTO chess_games (name, fen, player_email) VALUES (?, ?, ?)', 
+        [name || 'New Game', fen || defaultFen, email], 
+        function(err) {
+            if (err) return res.status(500).json({ error: 'Database error' });
+            db.get('SELECT id, name, fen, created_at FROM chess_games WHERE id = ?', [this.lastID], (err, row) => {
+                if (err) return res.status(500).json({ error: 'Database error' });
+                res.status(201).json(row);
+            });
+        }
+    );
+});
+
+// Record a chess move
+app.post('/api/chess/games/:gameId/moves', authMiddleware, (req, res) => {
+    const { notation, fen } = req.body;
+    const email = req.user.email;
+    
+    if (!notation) {
+        return res.status(400).json({ error: 'Move notation is required' });
+    }
+    
+    db.run('INSERT INTO chess_moves (gameId, notation, fen, player_email) VALUES (?, ?, ?, ?)',
+        [req.params.gameId, notation, fen || null, email],
+        function(err) {
+            if (err) return res.status(500).json({ error: 'Database error' });
+            db.get('SELECT id, notation, fen, created_at FROM chess_moves WHERE id = ?', [this.lastID], (err, row) => {
+                if (err) return res.status(500).json({ error: 'Database error' });
+                res.status(201).json(row);
+            });
+        }
+    );
 });
 
 app.listen(PORT, "0.0.0.0", () => {
