@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react"
+﻿import { useEffect, useMemo, useRef, useState } from "react"
 import { Globe, type GlobePreset } from "@/components/ui/globe"
 import { FireBall } from "@/components/ui/fire-ball"
 import { TextScramble } from "@/components/ui/text-scramble"
@@ -102,9 +102,10 @@ type GoogleWindow = Window & {
 
 const GAMES: Game[] = [
   { id: "nebula-run", title: "Nebula Run", genre: "Arcade", stars: "?????", status: "soon" },
-  { id: "neo-football", title: "Neo Football 2087", genre: "Arcade", stars: "????★", status: "live" },
-  { id: "cyber-run", title: "Cyber Run", genre: "Arcade", stars: "????★", status: "live" },
-  { id: "chess", title: "Chess", genre: "Puzzle", stars: "????★", status: "live" },
+  { id: "neo-football", title: "Neo Football 2087", genre: "Arcade", stars: "????â˜…", status: "live" },
+  { id: "cyber-run", title: "Cyber Run", genre: "Arcade", stars: "????â˜…", status: "live" },
+  { id: "chess", title: "Chess", genre: "Puzzle", stars: "????â˜…", status: "live" },
+  { id: "subway-bridge-runner", title: "Subway Bridge Runner", genre: "Race", stars: "????â˜…", status: "live" },
   { id: "quantum-drift", title: "Quantum Drift", genre: "Race", stars: "?????", status: "soon" },
   { id: "void-strike", title: "Void Strike", genre: "Shooter", stars: "?????", status: "soon" },
   { id: "orbit-ops", title: "Orbit Ops", genre: "Puzzle", stars: "?????", status: "soon" },
@@ -711,7 +712,7 @@ export default function App() {
             </div>
             <div className="mt-5 space-y-3 text-sm">
               <p className="flex items-center gap-2"><Clock3 size={15} className="text-primary" /> Time left: {fmt(left)}</p>
-              <p className="flex items-center gap-2"><Coins size={15} className="text-yellow-400" /> Credits: {credits?.balance ?? "—"}</p>
+              <p className="flex items-center gap-2"><Coins size={15} className="text-yellow-400" /> Credits: {credits?.balance ?? "â€”"}</p>
               <p className="flex items-center gap-2"><Gamepad2 size={15} className="text-purple-400" /> Games played: {gamesPlayed.total ?? 0}</p>
               <p className="text-xs text-muted-foreground">Daily limit resets at 5:30 AM.</p>
               <p className="flex items-center gap-2"><ShieldCheck size={15} className="text-primary" /> Logged in as: {session?.email || email}</p>
@@ -725,7 +726,7 @@ export default function App() {
             {activeGame === "neo-football" && (
               <GameFrame
                 gamePath="/neo-football.html"
-                title="⚽ Neo Football 2087"
+                title="âš½ Neo Football 2087"
                 isActive={session?.active && left > 0}
                 onClose={() => {
                   setActiveGame(null)
@@ -745,7 +746,7 @@ export default function App() {
             {activeGame === "cyber-run" && (
               <GameFrame
                 gamePath="/cyberpunk-game.html"
-                title="🌃 Cyberpunk Neon Dominion"
+                title="ðŸŒƒ Cyberpunk Neon Dominion"
                 isActive={session?.active && left > 0}
                 onClose={() => {
                   setActiveGame(null)
@@ -762,10 +763,10 @@ export default function App() {
                 gameId="cyber-run"
               />
             )}
-            {activeGame === "chess" && (
+                                    {activeGame === "chess" && (
               <GameFrame
                 gamePath="/chess-game.html"
-                title="♟️ Chess"
+                title="â™Ÿï¸ Chess"
                 isActive={session?.active && left > 0}
                 onClose={() => {
                   setActiveGame(null)
@@ -780,6 +781,26 @@ export default function App() {
                 }}
                 authToken={authToken}
                 gameId="chess"
+              />
+            )}
+            {activeGame === "subway-bridge-runner" && (
+              <GameFrame
+                gamePath="/subway-bridge-runner.html"
+                title="ðŸš‡ Subway Bridge Runner"
+                isActive={session?.active && left > 0}
+                onClose={() => {
+                  setActiveGame(null)
+                  // Refresh stats after game
+                  refreshSession()
+                  fetchCredits()
+                  try {
+                    api("/api/dashboard").then((stats) => {
+                      setGamesPlayed({ total: (stats as { gamesPlayed?: number }).gamesPlayed || 0 })
+                    })
+                  } catch {}
+                }}
+                authToken={authToken}
+                gameId="subway-bridge-runner"
               />
             )}
           </div>
@@ -801,7 +822,7 @@ export default function App() {
                 <div id="games-grid" className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                   {visibleGames.map((g) => {
                     const locked = playDisabled || g.status === "soon"
-                    const gameCosts: Record<string, number> = { "nebula-run": 10, "quantum-drift": 15, "void-strike": 20, "orbit-ops": 10, "neo-football": 5, "cyber-run": 5 }
+                    const gameCosts: Record<string, number> = { "nebula-run": 10, "quantum-drift": 15, "void-strike": 20, "orbit-ops": 10, "neo-football": 5, "cyber-run": 5 , "subway-bridge-runner": 5 }
                     const cost = gameCosts[g.id] || 5
                     return (
                       <article key={g.id} className="glass rounded-2xl p-4">
@@ -1095,3 +1116,8 @@ export default function App() {
     </main>
   )
 }
+
+
+
+
+
