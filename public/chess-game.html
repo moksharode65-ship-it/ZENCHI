@@ -1,0 +1,247 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Zenchi Chess</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chessboard.js/1.0.0/css/chessboard-1.0.0.min.css" />
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      background: #0b0f1a;
+      color: #e2e8f0;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at top, #1f2a44 0%, #0b0f1a 55%, #05070f 100%);
+      padding: 16px;
+    }
+
+    .shell {
+      width: min(1100px, 96vw);
+      display: grid;
+      gap: 20px;
+      grid-template-columns: minmax(320px, 1.1fr) minmax(240px, 0.9fr);
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      border-radius: 18px;
+      padding: 20px;
+      box-shadow: 0 30px 60px rgba(4, 7, 17, 0.55);
+    }
+
+    header {
+      grid-column: 1 / -1;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 1.4rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .subtitle {
+      font-size: 0.9rem;
+      color: #94a3b8;
+    }
+
+    #board {
+      width: min(70vw, 520px);
+      max-width: 100%;
+      margin: 0 auto;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 20px 40px rgba(8, 15, 30, 0.6);
+    }
+
+    .panel {
+      display: grid;
+      gap: 16px;
+    }
+
+    .status {
+      padding: 12px 14px;
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      border-radius: 12px;
+      font-size: 0.95rem;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    button {
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      background: #1e293b;
+      color: #e2e8f0;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+    }
+
+    button:hover {
+      background: #334155;
+      transform: translateY(-1px);
+      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.4);
+    }
+
+    .moves {
+      padding: 12px 14px;
+      background: rgba(8, 13, 26, 0.8);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      border-radius: 12px;
+      max-height: 320px;
+      overflow-y: auto;
+      font-size: 0.92rem;
+    }
+
+    .moves ol {
+      margin: 0;
+      padding-left: 18px;
+      display: grid;
+      gap: 6px;
+    }
+
+    .hint {
+      font-size: 0.85rem;
+      color: #94a3b8;
+      margin: 0;
+    }
+
+    @media (max-width: 900px) {
+      .shell {
+        grid-template-columns: 1fr;
+      }
+      #board {
+        width: min(88vw, 520px);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <div>
+        <h1>Zenchi Chess</h1>
+        <p class="subtitle">Play locally — drag pieces to make moves.</p>
+      </div>
+      <p class="hint">Tip: tap a piece and drag to a legal square.</p>
+    </header>
+
+    <div id="board"></div>
+
+    <aside class="panel">
+      <div class="status" id="status">Loading chessboard…</div>
+      <div class="controls">
+        <button id="resetBtn" type="button">Reset</button>
+        <button id="undoBtn" type="button">Undo</button>
+        <button id="flipBtn" type="button">Flip Board</button>
+      </div>
+      <div class="moves">
+        <strong>Moves</strong>
+        <ol id="movesList"></ol>
+      </div>
+    </aside>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/1.0.0/chess.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard.js/1.0.0/js/chessboard-1.0.0.min.js"></script>
+  <script>
+    const game = new Chess();
+    const statusEl = document.getElementById('status');
+    const movesList = document.getElementById('movesList');
+    let board = null;
+    let isFlipped = false;
+
+    function updateStatus() {
+      let status = '';
+      const moveColor = game.turn() === 'b' ? 'Black' : 'White';
+
+      if (game.in_checkmate()) {
+        status = `Checkmate! ${moveColor} is in checkmate.`;
+      } else if (game.in_draw()) {
+        status = 'Drawn position.';
+      } else {
+        status = `${moveColor} to move`;
+        if (game.in_check()) {
+          status += ' — check!';
+        }
+      }
+      statusEl.textContent = status;
+    }
+
+    function updateMoves() {
+      const history = game.history({ verbose: true });
+      movesList.innerHTML = '';
+      history.forEach((move, index) => {
+        const li = document.createElement('li');
+        const moveNumber = Math.floor(index / 2) + 1;
+        const prefix = index % 2 === 0 ? `${moveNumber}. ` : '';
+        li.textContent = `${prefix}${move.san}`;
+        movesList.appendChild(li);
+      });
+    }
+
+    function onDrop(source, target) {
+      const move = game.move({ from: source, to: target, promotion: 'q' });
+      if (move === null) return 'snapback';
+      updateStatus();
+      updateMoves();
+    }
+
+    function onSnapEnd() {
+      board.position(game.fen());
+    }
+
+    function setupBoard() {
+      board = Chessboard('board', {
+        draggable: true,
+        position: 'start',
+        onDrop,
+        onSnapEnd
+      });
+      updateStatus();
+      updateMoves();
+    }
+
+    document.getElementById('resetBtn').addEventListener('click', () => {
+      game.reset();
+      board.start();
+      updateStatus();
+      updateMoves();
+    });
+
+    document.getElementById('undoBtn').addEventListener('click', () => {
+      game.undo();
+      board.position(game.fen());
+      updateStatus();
+      updateMoves();
+    });
+
+    document.getElementById('flipBtn').addEventListener('click', () => {
+      isFlipped = !isFlipped;
+      board.orientation(isFlipped ? 'black' : 'white');
+    });
+
+    setupBoard();
+  </script>
+</body>
+</html>
