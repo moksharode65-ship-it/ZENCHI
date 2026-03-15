@@ -8,8 +8,8 @@
   <style>
     :root {
       color-scheme: light;
-      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
-      background: #0b0f1a;
+      font-family: "Manrope", "Segoe UI", system-ui, -apple-system, sans-serif;
+      background: #0a0f1e;
       color: #e2e8f0;
     }
 
@@ -18,10 +18,12 @@
     body {
       margin: 0;
       min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: radial-gradient(circle at top, #1f2a44 0%, #0b0f1a 55%, #05070f 100%);
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(circle at 15% 15%, rgba(72, 99, 255, 0.18), transparent 45%),
+        radial-gradient(circle at 85% 20%, rgba(255, 35, 59, 0.22), transparent 40%),
+        #0a0f1e;
       padding: 16px;
     }
 
@@ -30,11 +32,11 @@
       display: grid;
       gap: 20px;
       grid-template-columns: minmax(320px, 1.1fr) minmax(240px, 0.9fr);
-      background: rgba(15, 23, 42, 0.9);
+      background: rgba(15, 23, 42, 0.92);
       border: 1px solid rgba(148, 163, 184, 0.2);
       border-radius: 18px;
       padding: 20px;
-      box-shadow: 0 30px 60px rgba(4, 7, 17, 0.55);
+      box-shadow: 0 30px 60px rgba(4, 7, 17, 0.6);
     }
 
     header {
@@ -47,14 +49,15 @@
 
     h1 {
       margin: 0;
-      font-size: 1.4rem;
+      font-size: 1.5rem;
       letter-spacing: 0.08em;
       text-transform: uppercase;
     }
 
     .subtitle {
-      font-size: 0.9rem;
+      font-size: 0.92rem;
       color: #94a3b8;
+      margin: 6px 0 0;
     }
 
     #board {
@@ -77,6 +80,7 @@
       border: 1px solid rgba(148, 163, 184, 0.2);
       border-radius: 12px;
       font-size: 0.95rem;
+      min-height: 54px;
     }
 
     .controls {
@@ -100,6 +104,11 @@
       background: #334155;
       transform: translateY(-1px);
       box-shadow: 0 10px 24px rgba(15, 23, 42, 0.4);
+    }
+
+    button.active {
+      background: #ff233b;
+      border-color: #ff233b;
     }
 
     .moves {
@@ -140,7 +149,7 @@
     <header>
       <div>
         <h1>Zenchi Chess</h1>
-        <p class="subtitle">Play locally — drag pieces to make moves.</p>
+        <p class="subtitle">Drag pieces to play. Toggle AI for a quick opponent.</p>
       </div>
       <p class="hint">Tip: tap a piece and drag to a legal square.</p>
     </header>
@@ -153,6 +162,7 @@
         <button id="resetBtn" type="button">Reset</button>
         <button id="undoBtn" type="button">Undo</button>
         <button id="flipBtn" type="button">Flip Board</button>
+        <button id="aiBtn" type="button">AI: Off</button>
       </div>
       <div class="moves">
         <strong>Moves</strong>
@@ -168,8 +178,10 @@
     const game = new Chess();
     const statusEl = document.getElementById('status');
     const movesList = document.getElementById('movesList');
+    const aiBtn = document.getElementById('aiBtn');
     let board = null;
     let isFlipped = false;
+    let aiEnabled = false;
 
     function updateStatus() {
       let status = '';
@@ -200,11 +212,24 @@
       });
     }
 
+    function randomAIMove() {
+      if (!aiEnabled || game.game_over()) return;
+      if (game.turn() !== 'b') return;
+      const moves = game.moves();
+      if (!moves.length) return;
+      const move = moves[Math.floor(Math.random() * moves.length)];
+      game.move(move);
+      board.position(game.fen());
+      updateStatus();
+      updateMoves();
+    }
+
     function onDrop(source, target) {
       const move = game.move({ from: source, to: target, promotion: 'q' });
       if (move === null) return 'snapback';
       updateStatus();
       updateMoves();
+      window.setTimeout(randomAIMove, 250);
     }
 
     function onSnapEnd() {
@@ -239,6 +264,15 @@
     document.getElementById('flipBtn').addEventListener('click', () => {
       isFlipped = !isFlipped;
       board.orientation(isFlipped ? 'black' : 'white');
+    });
+
+    aiBtn.addEventListener('click', () => {
+      aiEnabled = !aiEnabled;
+      aiBtn.classList.toggle('active', aiEnabled);
+      aiBtn.textContent = aiEnabled ? 'AI: On' : 'AI: Off';
+      if (aiEnabled) {
+        randomAIMove();
+      }
     });
 
     setupBoard();
