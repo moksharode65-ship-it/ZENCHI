@@ -58,6 +58,8 @@ const GAME_COSTS = {
   "orbit-ops": 10,
   "neo-football": 5,
   "cyber-run": 5,
+  "chess": 5,
+  "subway-bridge-runner": 5,
 }
 
 const readDb = () => {

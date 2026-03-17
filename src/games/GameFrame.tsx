@@ -13,7 +13,7 @@ interface GameFrameProps {
   onGameEnd?: (playtime: number, score: number) => void;
 }
 
-const API = "http://localhost:8787";
+const API = (import.meta.env.VITE_API_URL as string) || "http://localhost:8787";
 
 export function GameFrame({ gamePath, title, onClose, isActive, authToken = "", gameId = "game", onGameEnd }: GameFrameProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
