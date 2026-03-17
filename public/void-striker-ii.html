@@ -681,11 +681,23 @@
     mFire.addEventListener('touchend', () => fire = false);
 
     // Start button
-    document.getElementById('start-btn').addEventListener('click', () => {
-      document.getElementById('overlay').classList.add('hidden');
-      game.active = true;
-      init();
-    });
+    const startBtn = document.getElementById('start-btn');
+    if (startBtn) {
+      startBtn.addEventListener('click', () => {
+        try {
+          document.getElementById('overlay').classList.add('hidden');
+          game.active = true;
+          init();
+        } catch (error) {
+          console.error('Error starting game:', error);
+          // Show error to user?
+          document.getElementById('overlay').classList.remove('hidden');
+          alert('Failed to start game. Please try again.');
+        }
+      });
+    } else {
+      console.error('Start button not found');
+    }
 
     function useBomb() {
       if (!game.active || game.power !== 'bomb') return;
