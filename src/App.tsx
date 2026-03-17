@@ -108,6 +108,7 @@ const GAMES: Game[] = [
   { id: "subway-bridge-runner", title: "Subway Bridge Runner", genre: "Race", stars: "????â˜…", status: "live" },
   { id: "quantum-drift", title: "Quantum Drift", genre: "Race", stars: "?????", status: "soon" },
   { id: "void-strike", title: "Void Strike", genre: "Shooter", stars: "?????", status: "soon" },
+  { id: "void-striker-ii", title: "Void Striker II", genre: "Shooter", stars: "????⭐", status: "live" },
   { id: "orbit-ops", title: "Orbit Ops", genre: "Puzzle", stars: "?????", status: "soon" },
 ]
 
@@ -372,7 +373,7 @@ export default function App() {
       }
       return result
     } catch (e) {
-      return { success: false, error: e instanceof Error ? e.message: "Failed to spend credits" }
+      return { success: false, error: e instanceof Error ? e.message : "Failed to spend credits" }
     }
   }
 
@@ -389,7 +390,7 @@ export default function App() {
       try {
         const stats = (await api("/api/dashboard")) as { gamesPlayed: number }
         setGamesPlayed({ total: stats.gamesPlayed || 0 })
-      } catch {}
+      } catch { }
     } catch {
       setAuthView("login")
     }
@@ -737,7 +738,7 @@ export default function App() {
                     api("/api/dashboard").then((stats) => {
                       setGamesPlayed({ total: (stats as { gamesPlayed?: number }).gamesPlayed || 0 })
                     })
-                  } catch {}
+                  } catch { }
                 }}
                 authToken={authToken}
                 gameId="neo-football"
@@ -757,13 +758,13 @@ export default function App() {
                     api("/api/dashboard").then((stats) => {
                       setGamesPlayed({ total: (stats as { gamesPlayed?: number }).gamesPlayed || 0 })
                     })
-                  } catch {}
+                  } catch { }
                 }}
                 authToken={authToken}
                 gameId="cyber-run"
               />
             )}
-                                    {activeGame === "chess" && (
+            {activeGame === "chess" && (
               <GameFrame
                 gamePath="/chess-game.html"
                 title="â™Ÿï¸ Chess"
@@ -777,7 +778,7 @@ export default function App() {
                     api("/api/dashboard").then((stats) => {
                       setGamesPlayed({ total: (stats as { gamesPlayed?: number }).gamesPlayed || 0 })
                     })
-                  } catch {}
+                  } catch { }
                 }}
                 authToken={authToken}
                 gameId="chess"
@@ -797,10 +798,29 @@ export default function App() {
                     api("/api/dashboard").then((stats) => {
                       setGamesPlayed({ total: (stats as { gamesPlayed?: number }).gamesPlayed || 0 })
                     })
-                  } catch {}
+                  } catch { }
                 }}
                 authToken={authToken}
                 gameId="subway-bridge-runner"
+              />
+            )}
+            {activeGame === "void-striker-ii" && (
+              <GameFrame
+                gamePath="/void-striker-ii.html"
+                title="🎮 Void Striker II"
+                isActive={session?.active && left > 0}
+                onClose={() => {
+                  setActiveGame(null)
+                  refreshSession()
+                  fetchCredits()
+                  try {
+                    api("/api/dashboard").then((stats) => {
+                      setGamesPlayed({ total: (stats as { gamesPlayed?: number }).gamesPlayed || 0 })
+                    })
+                  } catch { }
+                }}
+                authToken={authToken}
+                gameId="void-striker-ii"
               />
             )}
           </div>
@@ -822,7 +842,7 @@ export default function App() {
                 <div id="games-grid" className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                   {visibleGames.map((g) => {
                     const locked = playDisabled || g.status === "soon"
-                    const gameCosts: Record<string, number> = { "nebula-run": 10, "quantum-drift": 15, "void-strike": 20, "orbit-ops": 10, "neo-football": 5, "cyber-run": 5 , "subway-bridge-runner": 5 }
+                    const gameCosts: Record<string, number> = { "nebula-run": 10, "quantum-drift": 15, "void-strike": 20, "orbit-ops": 10, "neo-football": 5, "cyber-run": 5, "subway-bridge-runner": 5, "void-striker-ii": 5 }
                     const cost = gameCosts[g.id] || 5
                     return (
                       <article key={g.id} className="glass rounded-2xl p-4">
@@ -838,8 +858,8 @@ export default function App() {
                           <span className="text-xs text-yellow-400 flex items-center gap-1"><Coins size={12} /> {cost} credits</span>
                           {credits && credits.balance < cost && <span className="text-xs text-red-400">Insufficient</span>}
                         </div>
-                        <button 
-                          className="mt-4 w-full rounded-xl border border-[#37406d] px-3 py-2 text-sm hover:bg-[#ff233b] hover:border-[#ff233b] transition-colors disabled:opacity-50 disabled:cursor-not-allowed" 
+                        <button
+                          className="mt-4 w-full rounded-xl border border-[#37406d] px-3 py-2 text-sm hover:bg-[#ff233b] hover:border-[#ff233b] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           disabled={locked || (!!credits && credits.balance < cost)}
                           onClick={async () => {
                             if (g.status === "live") {
