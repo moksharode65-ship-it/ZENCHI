@@ -107,7 +107,6 @@ const GAMES: Game[] = [
   { id: "chess", title: "Chess", genre: "Puzzle", stars: "????â˜…", status: "live" },
   { id: "subway-bridge-runner", title: "Subway Bridge Runner", genre: "Race", stars: "????â˜…", status: "live" },
   { id: "quantum-drift", title: "Quantum Drift", genre: "Race", stars: "?????", status: "soon" },
-  { id: "void-strike", title: "Void Strike", genre: "Shooter", stars: "?????", status: "soon" },
   { id: "void-striker-ii", title: "Void Striker II", genre: "Shooter", stars: "????⭐", status: "live" },
   { id: "orbit-ops", title: "Orbit Ops", genre: "Puzzle", stars: "?????", status: "soon" },
 ]
