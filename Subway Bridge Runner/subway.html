@@ -10,7 +10,6 @@
 html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Rajdhani',sans-serif}
 #root{width:100vw;height:100vh;position:relative;overflow:hidden;background:#000}
 canvas{position:absolute;inset:0;width:100%;height:100%}
-.focus-target:focus{outline:none}
 .hidden{display:none!important}
 .orb{font-family:'Orbitron',monospace}
 .screen{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:30}
@@ -121,16 +120,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%}
 .coin-pop-label{position:absolute;pointer-events:none;font-family:'Orbitron',monospace;font-size:11px;color:#ffd700;font-weight:900;text-shadow:0 0 8px #ff8800;animation:coin-pop 0.6s ease-out forwards;z-index:50}
 </style>
 </head>
-<body class="focus-target" tabindex="0">
-<script>
-  // Ensure keyboard controls work inside iframe
-  window.addEventListener('load', () => {
-    document.body.focus();
-  });
-  window.addEventListener('pointerdown', () => {
-    document.body.focus();
-  });
-</script>
+<body>
 <div id="root">
   <canvas id="gc"></canvas>
 

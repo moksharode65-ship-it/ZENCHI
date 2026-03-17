@@ -1,0 +1,15 @@
+{
+  "name": "chess-backend",
+  "version": "1.0.0",
+  "description": "Minimal backend+database for the chess.html frontend",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "sql.js": "^1.10.0",
+    "cors": "^2.8.5",
+    "express": "^4.18.2"
+  }
+}
