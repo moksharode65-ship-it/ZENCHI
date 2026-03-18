@@ -101,14 +101,11 @@ type GoogleWindow = Window & {
 }
 
 const GAMES: Game[] = [
-  { id: "nebula-run", title: "Nebula Run", genre: "Arcade", stars: "?????", status: "soon" },
   { id: "neo-football", title: "Neo Football 2087", genre: "Arcade", stars: "????â˜…", status: "live" },
   { id: "cyber-run", title: "Cyber Run", genre: "Arcade", stars: "????â˜…", status: "live" },
   { id: "chess", title: "Chess", genre: "Puzzle", stars: "????â˜…", status: "live" },
   { id: "subway-bridge-runner", title: "Subway Bridge Runner", genre: "Race", stars: "????â˜…", status: "live" },
-  { id: "quantum-drift", title: "Quantum Drift", genre: "Race", stars: "?????", status: "soon" },
   { id: "void-striker-ii", title: "Void Striker II", genre: "Shooter", stars: "????⭐", status: "live" },
-  { id: "orbit-ops", title: "Orbit Ops", genre: "Puzzle", stars: "?????", status: "soon" },
 ]
 
 const FIRE_COLORS_AUTH = ["#ff233b", "#8a2be2", "#f44336"]
