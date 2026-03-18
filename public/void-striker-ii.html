@@ -61,6 +61,7 @@
       background: linear-gradient(90deg, #f0a, #ff0, #f0a);
       background-size: 200%;
       -webkit-background-clip: text;
+      background-clip: text;
       -webkit-text-fill-color: transparent;
       animation: sh 3s linear infinite;
     }
@@ -179,6 +180,7 @@
       letter-spacing: 6px;
       background: linear-gradient(90deg, #f0a, #ff0, #f0a);
       -webkit-background-clip: text;
+      background-clip: text;
       -webkit-text-fill-color: transparent;
       text-transform: uppercase;
     }
@@ -479,9 +481,10 @@
     });
 
     function init() {
+      resize(); // Ensure canvas is correct size
       game = {
         score: 0, lives: 3, wave: 1, combo: 1, comboTimer: 0,
-        kills: 0, shots: 0, active: false, paused: false, perf: true,
+        kills: 0, shots: 0, active: true, paused: false, perf: true,
         power: null, powerTimer: 0, shield: 0, triple: false,
         speed: false, laser: false, laserTimer: 0, extraLifeAt: 2000
       };
@@ -657,7 +660,7 @@
     // Input
     document.addEventListener('keydown', e => {
       keys[e.key] = true;
-      if (e.key === ' ') e.preventDefault();
+      if ([' ', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) e.preventDefault();
       if ((e.key === 'p' || e.key === 'P') && game.active) {
         game.paused = !game.paused;
       }
@@ -686,6 +689,7 @@
       startBtn.addEventListener('click', () => {
         try {
           document.getElementById('overlay').classList.add('hidden');
+          document.getElementById('game-over').classList.remove('show');
           game.active = true;
           init();
         } catch (error) {
@@ -761,7 +765,11 @@
       document.getElementById('overlay').classList.remove('hidden');
       document.getElementById('game-title').style.display = 'none';
       document.getElementById('instructions').style.display = 'none';
-      document.getElementById('start-btn').style.display = 'none';
+      const startBtn = document.getElementById('start-btn');
+      if (startBtn) {
+        startBtn.style.display = 'block';
+        startBtn.textContent = 'PLAY AGAIN';
+      }
       document.getElementById('game-over').classList.add('show');
       document.getElementById('final-score').textContent = game.score.toLocaleString();
       document.getElementById('final-wave').textContent = game.wave;
@@ -825,7 +833,7 @@
       if (flashB > 0) flashB -= 0.04;
 
       // Player movement
-      const spd = game.speed ? player.w * 1.7 : player.w;
+      const spd = game.speed ? 8 : 5;
       if (keys['ArrowLeft'] || keys['a'] || left) player.x = Math.max(0, player.x - spd);
       if (keys['ArrowRight'] || keys['d'] || right) player.x = Math.min(W - player.w, player.x + spd);
 

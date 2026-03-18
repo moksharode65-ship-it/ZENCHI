@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Globe, type GlobePreset } from "@/components/ui/globe"
 import { FireBall } from "@/components/ui/fire-ball"
 import { TextScramble } from "@/components/ui/text-scramble"
