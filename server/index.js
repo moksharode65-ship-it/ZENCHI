@@ -54,7 +54,7 @@ const CREDIT_PACKAGES = [
 const GAME_COSTS = {
   "nebula-run": 10,
   "quantum-drift": 15,
-  "void-strike": 20,
+  "void-striker-ii": 5,
   "orbit-ops": 10,
   "neo-football": 5,
   "cyber-run": 5,
