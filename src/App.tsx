@@ -29,6 +29,8 @@ type CreditData = {
   balance: number
   totalSpent: number
   totalEarned: number
+  streakDays?: number
+  lastLogin?: string | null
   transactions: Array<{
     id: number
     type: string
@@ -352,6 +354,19 @@ export default function App() {
     }
   }
 
+  const fetchDashboardStats = async () => {
+    try {
+      const stats = (await api("/api/dashboard")) as { gamesPlayed?: number }
+      setGamesPlayed({ total: stats.gamesPlayed || 0 })
+    } catch {
+      setGamesPlayed({ total: 0 })
+    }
+  }
+
+  const syncSidebarData = async () => {
+    await Promise.all([fetchCredits(), fetchDashboardStats()])
+  }
+
   const fetchGameCosts = async () => {
     try {
       const costs = (await api("/credits/game-costs")) as Record<string, number>
@@ -381,12 +396,7 @@ export default function App() {
       setSessionSyncedAt(Date.now())
       setAuthView("home")
       setMessage("")
-      await fetchCredits()
-      // Fetch games played
-      try {
-        const stats = (await api("/api/dashboard")) as { gamesPlayed: number }
-        setGamesPlayed({ total: stats.gamesPlayed || 0 })
-      } catch { }
+      await syncSidebarData()
     } catch {
       setAuthView("login")
     }
@@ -419,6 +429,7 @@ export default function App() {
       setAutoLogoutDone(false)
       setAuthView("home")
       setMessage("")
+      await syncSidebarData()
     } catch (e) {
       setMessage(e instanceof Error ? e.message : "Authentication failed")
     } finally {
@@ -608,6 +619,27 @@ export default function App() {
     setReviewMessage("Thanks for the review.")
   }
 
+  const launchGame = async (gameId: string, cost: number) => {
+    if (cost > 0 && credits && credits.balance < cost) return
+
+    if (cost > 0 && credits && credits.balance >= cost) {
+      const result = await spendCreditsForGame(gameId)
+      if (!result.success) {
+        setMessage(result.error || "Credit deduction failed")
+        return
+      }
+    }
+
+    try {
+      await api("/api/stats", "POST", { gameId, playtimeMs: 0, score: 0, countGame: true })
+      setGamesPlayed((prev) => ({ total: (prev.total ?? 0) + 1 }))
+    } catch {
+      void fetchDashboardStats()
+    }
+
+    setActiveGame(gameId)
+  }
+
   if (authView === "login" || authView === "logout") {
     return (
       <main className="relative min-h-screen overflow-hidden">
@@ -709,7 +741,7 @@ export default function App() {
             </div>
             <div className="mt-5 space-y-3 text-sm">
               <p className="flex items-center gap-2"><Clock3 size={15} className="text-primary" /> Time left: {fmt(left)}</p>
-              <p className="flex items-center gap-2"><Coins size={15} className="text-yellow-400" /> Credits: {credits?.balance ?? "â€”"}</p>
+              <p className="flex items-center gap-2"><Coins size={15} className="text-yellow-400" /> Credits: {credits?.balance ?? "-"}</p>
               <p className="flex items-center gap-2"><Gamepad2 size={15} className="text-purple-400" /> Games played: {gamesPlayed.total ?? 0}</p>
               <p className="text-xs text-muted-foreground">Daily limit resets at 5:30 AM.</p>
               <p className="flex items-center gap-2"><ShieldCheck size={15} className="text-primary" /> Logged in as: {session?.email || email}</p>
@@ -729,12 +761,7 @@ export default function App() {
                   setActiveGame(null)
                   // Refresh stats after game
                   refreshSession()
-                  fetchCredits()
-                  try {
-                    api("/api/dashboard").then((stats) => {
-                      setGamesPlayed({ total: (stats as { gamesPlayed?: number }).gamesPlayed || 0 })
-                    })
-                  } catch { }
+                  void syncSidebarData()
                 }}
                 authToken={authToken}
                 gameId="neo-football"
@@ -749,12 +776,7 @@ export default function App() {
                   setActiveGame(null)
                   // Refresh stats after game
                   refreshSession()
-                  fetchCredits()
-                  try {
-                    api("/api/dashboard").then((stats) => {
-                      setGamesPlayed({ total: (stats as { gamesPlayed?: number }).gamesPlayed || 0 })
-                    })
-                  } catch { }
+                  void syncSidebarData()
                 }}
                 authToken={authToken}
                 gameId="cyber-run"
@@ -769,12 +791,7 @@ export default function App() {
                   setActiveGame(null)
                   // Refresh stats after game
                   refreshSession()
-                  fetchCredits()
-                  try {
-                    api("/api/dashboard").then((stats) => {
-                      setGamesPlayed({ total: (stats as { gamesPlayed?: number }).gamesPlayed || 0 })
-                    })
-                  } catch { }
+                  void syncSidebarData()
                 }}
                 authToken={authToken}
                 gameId="chess"
@@ -789,12 +806,7 @@ export default function App() {
                   setActiveGame(null)
                   // Refresh stats after game
                   refreshSession()
-                  fetchCredits()
-                  try {
-                    api("/api/dashboard").then((stats) => {
-                      setGamesPlayed({ total: (stats as { gamesPlayed?: number }).gamesPlayed || 0 })
-                    })
-                  } catch { }
+                  void syncSidebarData()
                 }}
                 authToken={authToken}
                 gameId="subway-bridge-runner"
@@ -808,12 +820,7 @@ export default function App() {
                 onClose={() => {
                   setActiveGame(null)
                   refreshSession()
-                  fetchCredits()
-                  try {
-                    api("/api/dashboard").then((stats) => {
-                      setGamesPlayed({ total: (stats as { gamesPlayed?: number }).gamesPlayed || 0 })
-                    })
-                  } catch { }
+                  void syncSidebarData()
                 }}
                 authToken={authToken}
                 gameId="void-striker-ii"
@@ -859,15 +866,7 @@ export default function App() {
                           disabled={locked || (!!credits && credits.balance < cost)}
                           onClick={async () => {
                             if (g.status === "live") {
-                              // Spend credits before playing
-                              if (cost > 0 && credits && credits.balance >= cost) {
-                                const result = await spendCreditsForGame(g.id)
-                                if (!result.success) {
-                                  setMessage(result.error || "Credit deduction failed")
-                                  return
-                                }
-                              }
-                              setActiveGame(g.id)
+                              await launchGame(g.id, cost)
                             }
                           }}
                         >

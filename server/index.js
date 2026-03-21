@@ -70,6 +70,8 @@ const readDb = () => {
     credits: {},
     creditTransactions: [],
     deviceBindings: {},
+    userStats: {},
+    userAchievements: {},
   }
   if (!fs.existsSync(dbPath)) {
     fs.writeFileSync(dbPath, JSON.stringify(init, null, 2))
@@ -96,6 +98,8 @@ const readDb = () => {
     if (!Array.isArray(parsed.geoLocks)) parsed.geoLocks = []
     if (!parsed.credits || typeof parsed.credits !== "object") parsed.credits = {}
     if (!Array.isArray(parsed.creditTransactions)) parsed.creditTransactions = []
+    if (!parsed.userStats || typeof parsed.userStats !== "object") parsed.userStats = {}
+    if (!parsed.userAchievements || typeof parsed.userAchievements !== "object") parsed.userAchievements = {}
     return parsed
   } catch (err) {
     console.error("Error reading database file, resetting database:", err)
@@ -443,7 +447,14 @@ app.get("/credits/balance", auth, (req, res) => {
   const user = db.users.find((u) => u.id === req.user.uid)
   if (!user) return res.status(401).json({ error: "User not found" })
 
-  const credits = db.credits[user.id] || { balance: INITIAL_CREDITS, totalSpent: 0, transactions: [] }
+  const credits = db.credits[user.id] || {
+    balance: INITIAL_CREDITS,
+    totalEarned: 0,
+    totalSpent: 0,
+    streakDays: 0,
+    lastLogin: null,
+    transactions: [],
+  }
   res.json(credits)
 })
 
@@ -620,7 +631,7 @@ app.post("/api/playtime", auth, (req, res) => {
 
 // Update stats after game
 app.post("/api/stats", auth, (req, res) => {
-  const { gameId, playtimeMs, score } = req.body
+  const { gameId, playtimeMs, score, countGame = true } = req.body
   const db = readDb()
   const user = db.users.find((u) => u.id === req.user.uid)
   if (!user) return res.status(401).json({ error: "User not found" })
@@ -629,7 +640,9 @@ app.post("/api/stats", auth, (req, res) => {
   if (!db.userStats[user.id]) db.userStats[user.id] = { totalPlaytimeMs: 0, gamesPlayed: 0, highScores: {} }
 
   db.userStats[user.id].totalPlaytimeMs = (db.userStats[user.id].totalPlaytimeMs || 0) + (playtimeMs || 0)
-  db.userStats[user.id].gamesPlayed = (db.userStats[user.id].gamesPlayed || 0) + 1
+  if (countGame) {
+    db.userStats[user.id].gamesPlayed = (db.userStats[user.id].gamesPlayed || 0) + 1
+  }
 
   const currentHigh = db.userStats[user.id].highScores?.[gameId] || 0
   if (score > currentHigh) {

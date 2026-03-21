@@ -57,7 +57,8 @@ export function GameFrame({ gamePath, title, onClose, isActive, authToken = "", 
         body: JSON.stringify({
           gameId,
           playtimeMs: playtime,
-          score
+          score,
+          countGame: false,
         })
       });
 
